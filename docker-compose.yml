@@ -1,0 +1,133 @@
+version: "3.9"
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - brandos_data:/app/data
+    environment:
+      - BRANDOS_ENV=development
+      - BRANDOS_DATABASE_URL=sqlite+aiosqlite:///app/data/brandos.db
+      - BRANDOS_REDIS_URL=redis://redis:6379/0
+      - BRANDOS_CHROMADB_PATH=/app/data/chromadb
+      - BRANDOS_STORAGE_ENDPOINT=http://minio:9000
+      - BRANDOS_STORAGE_ACCESS_KEY=brandos
+      - BRANDOS_STORAGE_SECRET_KEY=brandossecret
+      - BRANDOS_STORAGE_BUCKET=brandos
+      - BRANDOS_LOG_LEVEL=DEBUG
+      - BRANDOS_CORS_ORIGINS=http://localhost:3000
+    depends_on:
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+    restart: unless-stopped
+    <<: *default-logging
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    command: ["python", "-m", "app.worker"]
+    volumes:
+      - ./backend:/app
+      - brandos_data:/app/data
+    environment:
+      - BRANDOS_ENV=development
+      - BRANDOS_DATABASE_URL=sqlite+aiosqlite:///app/data/brandos.db
+      - BRANDOS_REDIS_URL=redis://redis:6379/0
+      - BRANDOS_CHROMADB_PATH=/app/data/chromadb
+      - BRANDOS_STORAGE_ENDPOINT=http://minio:9000
+      - BRANDOS_STORAGE_ACCESS_KEY=brandos
+      - BRANDOS_STORAGE_SECRET_KEY=brandossecret
+      - BRANDOS_STORAGE_BUCKET=brandos
+      - BRANDOS_LOG_LEVEL=DEBUG
+    depends_on:
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    <<: *default-logging
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - WATCHPACK_POLLING=true
+    depends_on:
+      - backend
+    restart: unless-stopped
+    <<: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    <<: *default-logging
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      - MINIO_ROOT_USER=brandos
+      - MINIO_ROOT_PASSWORD=brandossecret
+    command: ["server", "/data", "--console-address", ":9001"]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    <<: *default-logging
+
+  chromadb:
+    image: chromadb/chroma:0.5.20
+    ports:
+      - "8001:8000"
+    volumes:
+      - chromadb_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=FALSE
+    restart: unless-stopped
+    <<: *default-logging
+
+volumes:
+  brandos_data:
+  redis_data:
+  minio_data:
+  chromadb_data:

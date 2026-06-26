@@ -1,2 +1,53 @@
 .opencode/
 claude-skills/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.egg
+dist/
+build/
+
+# Data
+backend/data/
+*.db
+*.sqlite
+
+# Node
+node_modules/
+.next/
+out/
+.npm/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Coverage
+coverage/
+coverage.xml
+htmlcov/
+.coverage
+
+# Ruff
+.ruff_cache/
+
+# MyPy
+.mypy_cache/
+
+# Logs
+*.log
