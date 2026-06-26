@@ -9,23 +9,18 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.36",
     "aiosqlite>=0.20.0",
     "alembic>=1.14.0",
-    "redis[hiredis]>=5.2.0",
-    "arq>=0.26.0",
     "pydantic>=2.10.0",
     "pydantic-settings>=2.6.0",
-    "pydantic-email>=0.0.3",
-    "pyjwt>=2.10.0",
-    "passlib[bcrypt]>=1.7.4",
     "httpx>=0.28.0",
-    "boto3>=1.35.0",
-    "cryptography>=44.0.0",
     "python-multipart>=0.0.17",
-    "anthropic>=0.47.0",
-    "openai>=1.55.0",
-    "chromadb>=0.5.20",
-    "lxml>=5.3.0",
-    "beautifulsoup4>=4.12.0",
-    "structlog>=24.4.0",
+    "loguru>=0.7.3",
+    "google-genai>=1.0.0",
+    "langgraph>=0.2.0",
+    "langchain-google-genai>=2.0.0",
+    "langchain-community>=0.3.0",
+    "llama-index>=0.12.0",
+    "llama-index-embeddings-huggingface>=0.4.0",
+    "sentence-transformers>=3.3.0",
     "orjson>=3.10.0",
 ]
 
@@ -39,9 +34,7 @@ dev = [
     "mypy>=1.13.0",
     "pre-commit>=4.0.0",
     "coverage>=7.6.0",
-    "testcontainers[redis]>=4.9.0",
     "faker>=33.0.0",
-    "httpx>=0.28.0",
 ]
 
 [tool.ruff]
@@ -56,6 +49,7 @@ select = ["E", "F", "I", "N", "W", "UP", "ANN", "B", "C4", "DTZ", "EM", "G", "LO
 "__init__.py" = ["F401"]
 "tests/*.py" = ["ANN", "S101"]
 "*/router.py" = ["ANN"]
+"core/*.py" = ["LOG"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -70,7 +64,7 @@ markers = ["integration: marks tests as integration tests"]
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.coverage.run]
-source = ["app"]
+source = ["api", "application", "agents", "services", "repositories", "database", "models", "schemas", "core"]
 omit = ["tests/*", "alembic/*"]
 
 [tool.coverage.report]
