@@ -43,7 +43,7 @@ Each layer builds on all layers below. Work within a layer can be parallelized.
 
 | Week | Deliverables | Dependencies |
 |------|-------------|--------------|
-| W1 | Project scaffolding — monorepo setup, Docker Compose (postgres+pgvector, redis, minio), pyproject.toml, CI pipeline, cookiecutter service template | None |
+| W1 | Project scaffolding — monorepo setup, Docker Compose (sqlite, chromadb, redis, minio), pyproject.toml, CI pipeline, cookiecutter service template | None |
 | W1 | Core infrastructure — `core/db.py` (async SQLAlchemy engine + session factory), `core/cache.py` (Redis abstraction), `core/logging.py` (structured JSON), `core/security.py` (password hashing, JWT encode/decode, AES-256-GCM) | W1 scaffold |
 | W2 | `models/auth.py` + `models/profile.py` (users, sessions, profiles, preferences) | W1 db |
 | W2 | Alembic migration 001 — initial schema (auth + profile tables) | W2 models |
@@ -71,8 +71,8 @@ Each layer builds on all layers below. Work within a layer can be parallelized.
 | W5 | Core embedding — `core/embedding.py` (IEmbeddingService), text embedding via LLM provider or dedicated embedding model | W5 LLM |
 | W5 | Core storage — `core/storage.py` (S3-compatible file storage via boto3 + Minio for dev) | Core infra |
 | W5 | Core queue — `core/queue.py` (Arq job queue wrapper, IJobQueue interface) | Core infra |
-| W6 | `models/kb.py` (knowledge_items, knowledge_tags, knowledge_embeddings) + Alembic migration with pgvector HNSW index | W5 embedding |
-| W6 | `KnowledgeBaseService` — CRUD, hybrid search (FTS + vector, 0.3/0.7 weight), tag management, `ingestion.py` (text extraction → LLM summarization → embedding → classification), `search.py` (hybrid query builder with pgvector) | W6 models, W5 LLM |
+| W6 | `models/kb.py` (knowledge_items, knowledge_tags, embedding_refs) + Alembic migration + ChromaDB `kb_embeddings` collection setup | W5 embedding |
+| W6 | `KnowledgeBaseService` — CRUD, hybrid search (SQLite FTS5 + ChromaDB vector, 0.3/0.7 weight), tag management, `ingestion.py` (text extraction → LLM summarization → embedding → classification), `search.py` (hybrid query builder with SQLite FTS5 + ChromaDB) | W6 models, W5 LLM |
 | W6 | `GET /api/v1/kb/items` (search, filter, paginate) + `POST /api/v1/kb/items` (add item) + `DELETE /api/v1/kb/items/{id}` | W6 KBService |
 | W6 | Frontend Knowledge Base page — item list, search bar, add item form, tag filter | W6 API |
 | W7 | `models/style.py` (style_profiles, style_signals, ratings) + Alembic migration | W2 models |
@@ -279,7 +279,7 @@ W1 ─── W2 ─── W3 ─── W4 ─── W5 ─── W6 ─── W7
 | LLM cost exceeds budget | Medium | Medium | Token tracking per user; tiered model selection (Haiku for stages 1/2/4, Sonnet for stage 3); hard monthly cap per user | +3 days |
 | Style convergence requires >10 ratings | Low | Medium | Seed fingerprint from writing sample analysis; cold-start with technical-writing defaults | +2 days |
 | GitHub API pagination for large repos | Low | Medium | Incremental sync with cursor-based pagination; sync only default branch + recent (≤90 days) | +1 day |
-| pgvector query performance regression | Low | High | HNSW index with appropriate ef_search; query timeout 5s; Phase 2 read replica | +3 days |
+| ChromaDB query performance regression | Low | High | HNSW index tuning (ef_search, M); ChromaDB batch size limits; query timeout 5s; Phase 2 vector store scaling | +3 days |
 
 ### Buffer Allocation
 

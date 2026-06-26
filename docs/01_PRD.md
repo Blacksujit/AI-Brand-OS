@@ -417,7 +417,7 @@ No existing solution **learns from the user's ongoing work** (GitHub activity, r
 ┌────────────────────────▼────────────────────────────────┐
 │                    Data Layer                             │
 ├────────────────┬────────────────┬───────────────────────┤
-│ PostgreSQL     │ Redis          │ Object Storage        │
+│ SQLite + ChromaDB │ Redis     │ Object Storage        │
 │ User data,     │ Cache,         │ User uploads,         │
 │ Knowledge base,│ Sessions       │ Generated assets      │
 │ Content,       │                │                       │

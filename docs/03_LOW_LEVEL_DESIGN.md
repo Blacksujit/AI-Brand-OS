@@ -2271,8 +2271,8 @@ knowledge_base_service/
 ├── search/
 │   ├── __init__.py
 │   ├── hybrid_search.py            # Full-text + vector search
-│   ├── keyword_search.py           # PostgreSQL full-text search
-│   └── semantic_search.py          # pgvector similarity search
+│       ├── keyword_search.py           # SQLite FTS5 full-text search
+│       └── semantic_search.py          # ChromaDB vector similarity search
 │
 └── repositories/
     ├── __init__.py
@@ -2563,10 +2563,11 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # --- Database ---
-    database_url: str = "postgresql+asyncpg://localhost:5432/brandos"
-    database_pool_size: int = 20
-    database_max_overflow: int = 10
+    database_url: str = "sqlite+aiosqlite:///./data/brandos.db"
+    database_pool_size: int = 5
+    database_max_overflow: int = 0
     database_echo: bool = False
+    chromadb_path: str = "./data/chromadb"
 
     # --- Redis ---
     redis_url: str = "redis://localhost:6379/0"
@@ -2674,23 +2675,23 @@ services:
   api:
     build: .
     ports: ["8000:8000"]
-    depends_on: [postgres, redis]
+    depends_on: [redis]
     env_file: .env
 
   worker:
     build: .
     command: arq worker.main.WorkerSettings
-    depends_on: [postgres, redis]
+    depends_on: [redis]
     env_file: .env
 
-  postgres:
-    image: pgvector/pgvector:pg16
-    ports: ["5432:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
+  chromadb:
+    image: chromadb/chroma:latest
+    ports: ["8001:8000"]
+    volumes: ["chroma_data:/chroma/chroma"]
     environment:
-      POSTGRES_DB: brandos
-      POSTGRES_USER: brandos
-      POSTGRES_PASSWORD: brandos_dev
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: "/chroma/chroma"
+      ANONYMIZED_TELEMETRY: "FALSE"
 
   redis:
     image: redis:7-alpine

@@ -1,0 +1,1063 @@
+{
+  "summary": {
+    "total_endpoints": 95,
+    "endpoints_with_issues": 85,
+    "total_issues": 150,
+    "errors": 0,
+    "warnings": 0,
+    "info": 150,
+    "score": 98.42
+  },
+  "issues": [
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /auth/register",
+      "path": "/paths//auth/register/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /auth/login",
+      "path": "/paths//auth/login/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /auth/oauth",
+      "path": "/paths//auth/oauth/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /auth/refresh",
+      "path": "/paths//auth/refresh/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /auth/logout",
+      "path": "/paths//auth/logout/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /auth/logout",
+      "path": "/paths//auth/logout/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 204 for POST /auth/logout",
+      "path": "/paths//auth/logout/post/responses/204",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /auth/me",
+      "path": "/paths//auth/me/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /auth/change-password",
+      "path": "/paths//auth/change-password/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 204 for POST /auth/change-password",
+      "path": "/paths//auth/change-password/post/responses/204",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /profile",
+      "path": "/paths//profile/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for PATCH /profile",
+      "path": "/paths//profile/patch/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /profile",
+      "path": "/paths//profile/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for PATCH /profile/preferences",
+      "path": "/paths//profile/preferences/patch/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /profile/preferences",
+      "path": "/paths//profile/preferences/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /profile/expertise",
+      "path": "/paths//profile/expertise/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /profile/expertise",
+      "path": "/paths//profile/expertise/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for DELETE /profile/expertise/{expertiseId}",
+      "path": "/paths//profile/expertise/{expertiseId}/delete/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /profile/onboarding/complete",
+      "path": "/paths//profile/onboarding/complete/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /profile/onboarding/complete",
+      "path": "/paths//profile/onboarding/complete/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /connections",
+      "path": "/paths//connections/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /connections/oauth-url",
+      "path": "/paths//connections/oauth-url/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /connections/oauth-url",
+      "path": "/paths//connections/oauth-url/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /connections/callback",
+      "path": "/paths//connections/callback/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /connections/callback",
+      "path": "/paths//connections/callback/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /connections/{connectionId}",
+      "path": "/paths//connections/{connectionId}/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for DELETE /connections/{connectionId}",
+      "path": "/paths//connections/{connectionId}/delete/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /connections/{connectionId}/refresh",
+      "path": "/paths//connections/{connectionId}/refresh/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /connections/{connectionId}/refresh",
+      "path": "/paths//connections/{connectionId}/refresh/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /connections/github/repos",
+      "path": "/paths//connections/github/repos/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for PUT /connections/github/selected-repos",
+      "path": "/paths//connections/github/selected-repos/put/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PUT request typically should have request body: PUT /connections/github/selected-repos",
+      "path": "/paths//connections/github/selected-repos/put",
+      "suggestion": "Consider adding requestBody for PUT operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /connections/github/sync",
+      "path": "/paths//connections/github/sync/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /connections/github/sync",
+      "path": "/paths//connections/github/sync/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /connections/github/sync",
+      "path": "/paths//connections/github/sync/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /connections/github/sync/{syncId}",
+      "path": "/paths//connections/github/sync/{syncId}/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /kb/items",
+      "path": "/paths//kb/items/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /kb/items",
+      "path": "/paths//kb/items/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /kb/items",
+      "path": "/paths//kb/items/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /kb/items/{itemId}",
+      "path": "/paths//kb/items/{itemId}/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for PATCH /kb/items/{itemId}",
+      "path": "/paths//kb/items/{itemId}/patch/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /kb/items/{itemId}",
+      "path": "/paths//kb/items/{itemId}/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for DELETE /kb/items/{itemId}",
+      "path": "/paths//kb/items/{itemId}/delete/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /kb/items/{itemId}/related",
+      "path": "/paths//kb/items/{itemId}/related/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /kb/search",
+      "path": "/paths//kb/search/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /kb/tags",
+      "path": "/paths//kb/tags/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /kb/tags/suggest",
+      "path": "/paths//kb/tags/suggest/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /kb/tags/suggest",
+      "path": "/paths//kb/tags/suggest/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /kb/tags/merge",
+      "path": "/paths//kb/tags/merge/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /kb/tags/merge",
+      "path": "/paths//kb/tags/merge/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for DELETE /kb/tags/{tagId}",
+      "path": "/paths//kb/tags/{tagId}/delete/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /kb/embedding-status",
+      "path": "/paths//kb/embedding-status/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /style/profile",
+      "path": "/paths//style/profile/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for PATCH /style/profile",
+      "path": "/paths//style/profile/patch/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /style/profile",
+      "path": "/paths//style/profile/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /style/progress",
+      "path": "/paths//style/progress/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /style/analyze",
+      "path": "/paths//style/analyze/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /style/analyze",
+      "path": "/paths//style/analyze/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /style/analyze",
+      "path": "/paths//style/analyze/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /style/import",
+      "path": "/paths//style/import/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /style/import",
+      "path": "/paths//style/import/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /style/insights",
+      "path": "/paths//style/insights/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /briefs",
+      "path": "/paths//briefs/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /briefs/generate",
+      "path": "/paths//briefs/generate/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /briefs/generate",
+      "path": "/paths//briefs/generate/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /briefs/generate",
+      "path": "/paths//briefs/generate/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /briefs/{briefId}",
+      "path": "/paths//briefs/{briefId}/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /briefs/{briefId}/acknowledge",
+      "path": "/paths//briefs/{briefId}/acknowledge/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /briefs/{briefId}/acknowledge",
+      "path": "/paths//briefs/{briefId}/acknowledge/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /briefs/{briefId}/dismiss",
+      "path": "/paths//briefs/{briefId}/dismiss/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /briefs/{briefId}/dismiss",
+      "path": "/paths//briefs/{briefId}/dismiss/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /briefs/{briefId}/ideas",
+      "path": "/paths//briefs/{briefId}/ideas/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /briefs/schedule",
+      "path": "/paths//briefs/schedule/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /briefs/schedule",
+      "path": "/paths//briefs/schedule/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /briefs/schedule",
+      "path": "/paths//briefs/schedule/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for PATCH /briefs/schedule/{scheduleId}",
+      "path": "/paths//briefs/schedule/{scheduleId}/patch/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /briefs/schedule/{scheduleId}",
+      "path": "/paths//briefs/schedule/{scheduleId}/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for DELETE /briefs/schedule/{scheduleId}",
+      "path": "/paths//briefs/schedule/{scheduleId}/delete/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /ideas/{ideaId}/approve",
+      "path": "/paths//ideas/{ideaId}/approve/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /ideas/{ideaId}/approve",
+      "path": "/paths//ideas/{ideaId}/approve/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /ideas/{ideaId}/reject",
+      "path": "/paths//ideas/{ideaId}/reject/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /ideas/{ideaId}/reject",
+      "path": "/paths//ideas/{ideaId}/reject/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /ideas/{ideaId}/draft",
+      "path": "/paths//ideas/{ideaId}/draft/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /ideas/{ideaId}/draft",
+      "path": "/paths//ideas/{ideaId}/draft/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /drafts/{draftId}",
+      "path": "/paths//drafts/{draftId}/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for PATCH /drafts/{draftId}",
+      "path": "/paths//drafts/{draftId}/patch/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /drafts/{draftId}",
+      "path": "/paths//drafts/{draftId}/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /drafts/{draftId}/revise",
+      "path": "/paths//drafts/{draftId}/revise/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /drafts/{draftId}/revise",
+      "path": "/paths//drafts/{draftId}/revise/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /drafts/{draftId}/revise",
+      "path": "/paths//drafts/{draftId}/revise/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /drafts/{draftId}/revisions",
+      "path": "/paths//drafts/{draftId}/revisions/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /drafts/{draftId}/revisions/{revisionId}",
+      "path": "/paths//drafts/{draftId}/revisions/{revisionId}/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /drafts/{draftId}/approve",
+      "path": "/paths//drafts/{draftId}/approve/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /drafts/{draftId}/approve",
+      "path": "/paths//drafts/{draftId}/approve/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /content/history",
+      "path": "/paths//content/history/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /content/{contentId}/rate",
+      "path": "/paths//content/{contentId}/rate/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /content/{contentId}/rate",
+      "path": "/paths//content/{contentId}/rate/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /content/{contentId}/schedule",
+      "path": "/paths//content/{contentId}/schedule/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /content/{contentId}/schedule",
+      "path": "/paths//content/{contentId}/schedule/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /content/{contentId}/cancel-schedule",
+      "path": "/paths//content/{contentId}/cancel-schedule/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /content/{contentId}/cancel-schedule",
+      "path": "/paths//content/{contentId}/cancel-schedule/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /platform/publish",
+      "path": "/paths//platform/publish/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /platform/publish",
+      "path": "/paths//platform/publish/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /platform/publish",
+      "path": "/paths//platform/publish/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /platform/publications",
+      "path": "/paths//platform/publications/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /platform/publications/{publicationId}",
+      "path": "/paths//platform/publications/{publicationId}/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /platform/publications/{publicationId}/cancel",
+      "path": "/paths//platform/publications/{publicationId}/cancel/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /platform/publications/{publicationId}/cancel",
+      "path": "/paths//platform/publications/{publicationId}/cancel/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /platform/publications/{publicationId}/metrics",
+      "path": "/paths//platform/publications/{publicationId}/metrics/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /trends",
+      "path": "/paths//trends/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /trends/{trendId}",
+      "path": "/paths//trends/{trendId}/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /trends/sources",
+      "path": "/paths//trends/sources/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for PATCH /trends/sources/{sourceId}",
+      "path": "/paths//trends/sources/{sourceId}/patch/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /trends/sources/{sourceId}",
+      "path": "/paths//trends/sources/{sourceId}/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /trends/relevance",
+      "path": "/paths//trends/relevance/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /trends/relevance",
+      "path": "/paths//trends/relevance/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /analytics/dashboard",
+      "path": "/paths//analytics/dashboard/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /analytics/posts/{publicationId}",
+      "path": "/paths//analytics/posts/{publicationId}/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /analytics/engagement",
+      "path": "/paths//analytics/engagement/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /analytics/audience",
+      "path": "/paths//analytics/audience/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /analytics/content-score",
+      "path": "/paths//analytics/content-score/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /analytics/export",
+      "path": "/paths//analytics/export/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /notifications",
+      "path": "/paths//notifications/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /notifications/{notificationId}/read",
+      "path": "/paths//notifications/{notificationId}/read/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /notifications/{notificationId}/read",
+      "path": "/paths//notifications/{notificationId}/read/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 204 for POST /notifications/{notificationId}/read",
+      "path": "/paths//notifications/{notificationId}/read/post/responses/204",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /notifications/read-all",
+      "path": "/paths//notifications/read-all/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /notifications/read-all",
+      "path": "/paths//notifications/read-all/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 204 for POST /notifications/read-all",
+      "path": "/paths//notifications/read-all/post/responses/204",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /notifications/preferences",
+      "path": "/paths//notifications/preferences/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for PATCH /notifications/preferences",
+      "path": "/paths//notifications/preferences/patch/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /notifications/preferences",
+      "path": "/paths//notifications/preferences/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /admin/stats",
+      "path": "/paths//admin/stats/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /admin/force-sync/{userId}",
+      "path": "/paths//admin/force-sync/{userId}/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /admin/force-sync/{userId}",
+      "path": "/paths//admin/force-sync/{userId}/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /admin/force-sync/{userId}",
+      "path": "/paths//admin/force-sync/{userId}/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /admin/users",
+      "path": "/paths//admin/users/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /admin/users/{userId}",
+      "path": "/paths//admin/users/{userId}/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /admin/regenerate-embeddings",
+      "path": "/paths//admin/regenerate-embeddings/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /admin/regenerate-embeddings",
+      "path": "/paths//admin/regenerate-embeddings/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /admin/regenerate-embeddings",
+      "path": "/paths//admin/regenerate-embeddings/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /health",
+      "path": "/paths//health/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /health/ready",
+      "path": "/paths//health/ready/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /health/live",
+      "path": "/paths//health/live/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /webhooks/github",
+      "path": "/paths//webhooks/github/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /webhooks/github",
+      "path": "/paths//webhooks/github/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /webhooks/github",
+      "path": "/paths//webhooks/github/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for POST /webhooks/linkedin",
+      "path": "/paths//webhooks/linkedin/post/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /webhooks/linkedin",
+      "path": "/paths//webhooks/linkedin/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /webhooks/linkedin",
+      "path": "/paths//webhooks/linkedin/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    }
+  ]
+}

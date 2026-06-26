@@ -1,0 +1,75 @@
+{
+  "overall": {
+    "score": 66.2,
+    "grade": "D",
+    "totalEndpoints": 95
+  },
+  "api_info": {
+    "title": "BrandOS API",
+    "version": "1.0.0",
+    "description": "AI-powered personal brand operating system",
+    "total_paths": 85,
+    "openapi_version": "3.1.0"
+  },
+  "categories": {
+    "consistency": {
+      "score": 93.28,
+      "grade": "A",
+      "weight": 30.0,
+      "weightedScore": 27.98,
+      "issues": [],
+      "recommendations": []
+    },
+    "documentation": {
+      "score": 34.27,
+      "grade": "F",
+      "weight": 20.0,
+      "weightedScore": 6.85,
+      "issues": [],
+      "recommendations": [
+        "Add comprehensive descriptions to all API components",
+        "Include examples for complex operations and schemas",
+        "Document all parameters and response fields"
+      ]
+    },
+    "security": {
+      "score": 84.0,
+      "grade": "B",
+      "weight": 20.0,
+      "weightedScore": 16.8,
+      "issues": [],
+      "recommendations": []
+    },
+    "usability": {
+      "score": 50.65,
+      "grade": "F",
+      "weight": 15.0,
+      "weightedScore": 7.6,
+      "issues": [],
+      "recommendations": [
+        "Improve error messages with actionable guidance",
+        "Add filtering and search capabilities to list endpoints",
+        "Enhance resource discoverability with better linking"
+      ]
+    },
+    "performance": {
+      "score": 46.41,
+      "grade": "F",
+      "weight": 15.0,
+      "weightedScore": 6.96,
+      "issues": [],
+      "recommendations": [
+        "Implement pagination for list endpoints",
+        "Add caching headers for cacheable responses",
+        "Consider batch operations for bulk updates"
+      ]
+    }
+  },
+  "topRecommendations": [
+    "Documentation: Add comprehensive descriptions to all API components",
+    "Documentation: Include examples for complex operations and schemas",
+    "Usability: Improve error messages with actionable guidance",
+    "Usability: Add filtering and search capabilities to list endpoints",
+    "Performance: Implement pagination for list endpoints"
+  ]
+}

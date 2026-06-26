@@ -54,8 +54,8 @@
 |----------|--------|-----------|
 | **Backend Runtime** | Python (FastAPI) | Dominant in AI/ML ecosystem. Native async support. Rich library ecosystem for LLM orchestration, embeddings, and data processing. |
 | **Frontend** | Next.js 14+ (App Router) | SSR for content-rich pages. API routes can serve as BFF. React ecosystem for rich editing experiences. |
-| **Primary Database** | PostgreSQL | Relational integrity for user profiles, content, schedules. JSONB for flexible knowledge base items. Full-text search. |
-| **Vector Store** | pgvector (PostgreSQL extension) | Avoids operational complexity of a separate vector database. Sufficient for MVP scale (10K items/user). Migrate to Pinecone/Weaviate at scale. |
+| **Primary Database** | SQLite | Zero-operations embedded database. Sufficient for single-tenant MVP (< 500 users). WAL mode for concurrent reads. FTS5 for full-text search. Data stored per-instance at `./data/brandos.db`. Migrate to PostgreSQL at scale. |
+| **Vector Store** | ChromaDB | Dedicated vector database decoupled from relational schema. Persistent local client at `./data/chromadb/`. HNSW indexes for sub-100ms queries. Migrate to Pinecone/Weaviate at scale or when exceeding 10M vectors. |
 | **Cache & Queue** | Redis | Dual-purpose. Cache for hot data (content briefs, trending topics). Queue (via Arq) for async content generation jobs. |
 | **Object Storage** | S3-compatible (AWS S3 / Cloudflare R2) | Draft history, user uploads, generated assets. R2 for egress-free multi-region. |
 | **LLM Interface** | Abstraction layer (own interface) | Swap between Anthropic Claude (primary for long-form), OpenAI GPT-4o (fallback), and future models without touching business logic. |
@@ -120,7 +120,8 @@ C4Container
     }
 
     System_Boundary(data, "Data Layer") {
-      ContainerDb(pg, "PostgreSQL", "Primary DB", "Users, profiles, content, knowledge base, schedules")
+      ContainerDb(sqlite, "SQLite", "Primary DB", "Users, profiles, content, knowledge base, schedules")
+      ContainerDb(chromadb, "ChromaDB", "Vector DB", "Knowledge embeddings, style vectors, content similarity")
       ContainerDb(redis, "Redis", "Cache + Queue", "Session cache, hot data, Arq job queue")
       ContainerDb(storage, "S3 Storage", "Object Storage", "Draft history, user uploads, generated assets")
     }
@@ -150,13 +151,13 @@ C4Container
   Rel(brief, notif, "gRPC/HTTP", "Trigger delivery")
   Rel(notif, email, "HTTPS", "SendGrid API")
 
-  Rel(github_svc, pg, "SQLAlchemy", "Read/Write")
-  Rel(kb, pg, "SQLAlchemy", "Read/Write")
-  Rel(kb, redis, "Redis", "Vector cache")
+  Rel(github_svc, sqlite, "SQLAlchemy", "Read/Write")
+  Rel(kb, sqlite, "SQLAlchemy", "Read/Write")
+  Rel(kb, chromadb, "ChromaDB client", "Vector I/O")
   Rel(content, redis, "Redis", "Job queue")
-  Rel(content, pg, "SQLAlchemy", "Read/Write")
-  Rel(style, pg, "SQLAlchemy", "Read/Write")
-  Rel(pg, storage, "Draft attachments")
+  Rel(content, sqlite, "SQLAlchemy", "Read/Write")
+  Rel(style, sqlite, "SQLAlchemy", "Read/Write")
+  Rel(sqlite, storage, "Draft attachments")
 ```
 
 ### 2.3 Layer Architecture
@@ -230,18 +231,19 @@ flowchart TB
   end
 
   subgraph Data["Data Layer"]
-    PG[("PostgreSQL
+    SQLITE[("SQLite
         · User data
         · Content store
         · Knowledge base
         · Schedules")]
+    CHROMA[("ChromaDB
+        · KB embeddings
+        · Style vectors
+        · Content similarity")]
     REDIS[("Redis
         · Session cache
         · Hot data cache
         · Job queue")]
-    VEC[("pgvector
-        · Style embeddings
-        · KB embeddings")]
     S3[("S3 / R2
         · Draft history
         · Uploads
@@ -273,16 +275,16 @@ flowchart TB
   GITHUB -->|"repo data"| GH_API
   PLATFORM -->|"publish"| LI_API
 
-  AUTH --> PG
-  PROFILE --> PG
-  GITHUB --> PG
-  KB --> PG
-  KB --> VEC
-  CONTENT --> PG
-  STYLE --> PG
-  STYLE --> VEC
-  PLATFORM --> PG
-  ANALYTICS --> PG
+  AUTH --> SQLITE
+  PROFILE --> SQLITE
+  GITHUB --> SQLITE
+  KB --> SQLITE
+  KB --> CHROMA
+  CONTENT --> SQLITE
+  STYLE --> SQLITE
+  STYLE --> CHROMA
+  PLATFORM --> SQLITE
+  ANALYTICS --> SQLITE
 
   CONTENT -->|"job queue"| REDIS
   AUTH -->|"session cache"| REDIS
@@ -303,9 +305,14 @@ FastAPI was chosen over Django for three reasons:
 
 Content creation involves writing, editing, previewing, and managing drafts — all of which benefit from SSR for SEO (public profile pages, shared content), faster initial page loads, and better perceived performance. Next.js API routes also serve as a BFF layer, eliminating the need for a separate gateway microservice at MVP scale.
 
-### Decision: Why pgvector over a dedicated vector database
+### Decision: Why ChromaDB over pgvector or dedicated vector databases
 
-At MVP scale (< 10K items per user, < 500 users), pgvector eliminates the operational cost of a separate Pinecone/Weaviate/Chroma cluster. Vector search performance in PostgreSQL with an HNSW index is sufficient for sub-100ms queries at this scale. Migration path: when we exceed 10M vectors, extract to a dedicated vector DB behind the same repository interface.
+ChromaDB was chosen over pgvector and dedicated vector databases (Pinecone/Weaviate) for three reasons:
+1. **Decoupled scaling** — Vector embeddings grow independently of relational data. ChromaDB uses a separate PersistentClient, so vector re-indexing, HNSW tuning, and dimension changes don't touch SQLite.
+2. **Zero-ops for MVP** — ChromaDB's PersistentClient stores vectors as flat files in `./data/chromadb/`, matching SQLite's zero-operations philosophy. No separate server process or cloud dependency.
+3. **Clean migration path** — The `IEmbeddingStore` interface abstracts ChromaDB behind a repository pattern. When exceeding 10M vectors or adding multi-region requirements, swap to Pinecone/Weaviate without touching business logic.
+
+At MVP scale (< 10K items per user, < 500 users), ChromaDB provides sub-100ms HNSW queries with zero operational overhead. This also avoids coupling the vector store to the relational schema lifecycle, unlike pgvector which ties vector operations to PostgreSQL schema migrations.
 
 ---
 
@@ -503,7 +510,7 @@ sequenceDiagram
   participant Content as Content Engine
   participant Style as Style Service
   participant LLM as LLM Provider
-  participant DB as PostgreSQL
+  participant DB as SQLite
   participant Cache as Redis
 
   Note over User,Cache: Scheduled daily at 8:00 AM (user's timezone)
@@ -581,7 +588,7 @@ sequenceDiagram
   participant LLM as LLM Provider
   participant Platform as Platform Service
   participant LI as LinkedIn API
-  participant DB as PostgreSQL
+  participant DB as SQLite
 
   User->>Web: Opens content brief
   Web->>API: GET /briefs/today
@@ -784,8 +791,8 @@ flowchart TB
   end
 
   subgraph STORAGE["Stored Data"]
-    PG[(PostgreSQL)]
-    VEC[(pgvector embeddings)]
+    SQLITE[(SQLite)]
+    CHROMA[(ChromaDB embeddings)]
     S3[(S3 / R2)]
   end
 
@@ -924,14 +931,14 @@ flowchart TB
 
     WORKING["Working Memory
              Duration: Days
-             Store: Redis + PostgreSQL
+             Store: Redis + SQLite
              · Today's brief context
              · Recent ratings/edits
              · In-progress drafts"]
 
     LONG["Long-Term Memory
           Duration: Permanent
-          Store: PostgreSQL
+          Store: SQLite + ChromaDB
           · Style profile (EMA)
           · Voice fingerprint vector
           · Content history
@@ -939,14 +946,14 @@ flowchart TB
 
     EPISODIC["Episodic Memory
               Duration: 90 days
-              Store: PostgreSQL + S3
+              Store: SQLite + S3
               · Draft revision history
               · Edit diffs
               · Generation artifacts"]
 
     STRATEGIC["Strategic Memory
                Duration: Permanent
-               Store: PostgreSQL
+               Store: SQLite
                · User preferences
                · Content categories
                · Posting cadence
@@ -956,8 +963,8 @@ flowchart TB
   subgraph ACCESS["Memory Access Patterns"]
     READ["Read
           · Fast path: Redis
-          · Slow path: PostgreSQL
-          · Emb query: pgvector"]
+          · Slow path: SQLite
+          · Emb query: ChromaDB"]
     WRITE["Write
            · Sync: user actions
            · Async: background
@@ -987,10 +994,10 @@ flowchart TB
 This is inspired by cognitive architecture research (Atkinson-Shiffrin + Nuxoll & Laird's episodic memory for Soar agents). The key insight: different memory types have different access patterns, durability requirements, and data structures. Storing them in the same system would force trade-offs. By separating them:
 
 - **Short-Term** uses Redis (fast, volatile, TTL-based)
-- **Working** uses Redis with PostgreSQL persistence (fast reads, durable when promoted)
-- **Long-Term** uses PostgreSQL (ACID, relational, queryable)
-- **Episodic** uses PostgreSQL + S3 (relational metadata, blob storage for diffs)
-- **Strategic** uses PostgreSQL (rarely written, frequently read, relational)
+- **Working** uses Redis with SQLite persistence (fast reads, durable when promoted)
+- **Long-Term** uses SQLite + ChromaDB (ACID, relational, queryable, plus vector search)
+- **Episodic** uses SQLite + S3 (relational metadata, blob storage for diffs)
+- **Strategic** uses SQLite (rarely written, frequently read, relational)
 
 ---
 
@@ -1042,12 +1049,12 @@ flowchart TB
   end
 
   subgraph STORE["Knowledge Store"]
-    PG[(PostgreSQL
+    SQLITE[(SQLite
         · Items
         · Tags
         · Relationships
         · Metadata)]
-    VEC[(pgvector
+    CHROMA[(ChromaDB
          · Embeddings
          · Similarity index)]
     S3[(S3 / R2
@@ -1111,7 +1118,7 @@ flowchart TB
 
 ### Decision: Hybrid search (full-text + vector)
 
-Knowledge retrieval uses a hybrid approach: PostgreSQL full-text search for keyword queries (tag search, title search) combined with pgvector for semantic similarity. The hybrid search query weights both scores with a configurable ratio (default 0.3 keyword + 0.7 vector). This handles both "find the article I saved about attention" (keyword) and "find articles similar to this concept" (vector).
+Knowledge retrieval uses a hybrid approach: SQLite FTS5 full-text search for keyword queries (tag search, title search) combined with ChromaDB vector similarity for semantic search. The hybrid search query uses Reciprocal Rank Fusion (RRF) or a configurable weight ratio (default 0.3 keyword + 0.7 vector) to merge results. This handles both "find the article I saved about attention" (keyword) and "find articles similar to this concept" (vector).
 
 ---
 
@@ -1359,7 +1366,8 @@ flowchart LR
 
   subgraph PHASE2["Scale (Q1 2027)"]
     V2["Version 2
-        · pgvector HNSW index
+        · Migrate SQLite → PostgreSQL
+        · Dedicated vector store (Pinecone / Weaviate)
         · Read replicas
         · Partitioned content
         · Analytics schema"]
@@ -1380,7 +1388,7 @@ flowchart LR
 
 ### Decision: Single database, not microservices-per-database
 
-For MVP, all services share a single PostgreSQL database with schema-level separation (schemas: `auth`, `content`, `kb`, `analytics`). This avoids the operational complexity of per-service databases while maintaining logical separation. Migration path: when any schema exceeds 50GB or 500 rows-per-second write throughput, extract it to its own physical database.
+For MVP, all services share a single SQLite database (`./data/brandos.db`) with schema-level separation (tables prefixed by domain: `auth_`, `content_`, `kb_`, `analytics_`). This avoids the operational complexity of a database server while maintaining logical separation. ChromaDB handles all vector data in a separate local store (`./data/chromadb/`). Migration path: when user count exceeds 500 or any table exceeds 1M rows, migrate SQLite to PostgreSQL — schema separation then maps to PostgreSQL schemas naturally.
 
 ---
 
@@ -1677,14 +1685,14 @@ flowchart TB
   end
 
   subgraph DATA["Data Tier"]
-    PG_H["PostgreSQL
+    PG_H["PostgreSQL (Phase 2+)
           · Read replicas (analytics)
           · Connection pooling (PgBouncer)
           · Vertical scale first"]
     PG_S["Strategy
-          · MVP: 1 writer + 1 reader
-          · Phase 2: +2 readers
-          · Phase 3: Shard by user_id"]
+          · MVP: SQLite (single file, WAL mode)
+          · Phase 2: PostgreSQL, 1 writer + 1 reader
+          · Phase 3: +2 readers, shard by user_id"]
     REDIS_H["Redis
              · Cluster mode
              · Persistence: RDB + AOF
@@ -1707,7 +1715,7 @@ flowchart TB
 | Bottleneck | MVP Limit | Scaling Trigger | Solution |
 |-----------|-----------|----------------|----------|
 | **LLM API Rate Limit** | ~500 RPM per key | > 500 requests/minute | Round-robin across API keys. Cache common prompts. Queue non-urgent generation. |
-| **PostgreSQL Write TPS** | ~1,000 writes/sec | > 500 writes/sec | Connection pooling (PgBouncer). Write batching. Shard by user_id. |
+| **SQLite Write TPS** | ~500 writes/sec | > 300 writes/sec | WAL mode + batch writes. Phase 2: migrate to PostgreSQL for 1,000+ writes/sec. |
 | **GitHub API Rate Limit** | 5,000 req/hr per token | > 4,000 req/hr | Token pool across users. Reduce poll frequency. Cache aggressively. |
 | **LinkedIn API Rate Limit** | 100,000 calls/day per app | > 80,000 calls/day | Batch analytics fetches. Reduce poll frequency to daily. |
 | **Redis Memory** | < 1GB per instance | > 750MB used | Cluster mode. More aggressive TTL. Evict less-accessed keys. |
@@ -1715,7 +1723,9 @@ flowchart TB
 
 ### Decision: Vertical scale first, horizontal second
 
-PostgreSQL is scaled vertically first (bigger instance) before adding read replicas. The MVP data volume (500 users × 10K items = 5M rows) fits comfortably on a single large instance. Read replicas only become necessary when analytics queries (heavy aggregations) start competing with write traffic. This avoids premature distributed-system complexity.
+**MVP (SQLite)**: SQLite with WAL mode provides sufficient concurrency for single-tenant and small-team deployments. The `busy_timeout` pragma prevents lock contention during brief concurrent writes. For 500 users × 10K items = 5M rows, a single SQLite file performs well with proper indexing and FTS5.
+
+**Phase 2 (PostgreSQL)**: When migrating to PostgreSQL, scale vertically first (bigger instance) before adding read replicas. Read replicas only become necessary when analytics queries (heavy aggregations) start competing with write traffic. This avoids premature distributed-system complexity.
 
 ---
 
@@ -1765,11 +1775,11 @@ flowchart TB
   end
 
   subgraph L4["L4: Database Cache"]
-    L4_DATA["PostgreSQL
-             · Shared buffers
-             · Effective cache size: 25% of RAM
+    L4_DATA["SQLite (MVP) → PostgreSQL (Phase 2)
+             · SQLite: page cache (PRAGMA cache_size)
+             · PostgreSQL: shared buffers, 25% of RAM
              · Index-only scans
-             · Materialized views (analytics)"]
+             · Materialized views (analytics, Phase 2)"]
   end
 
   L1 --> L2
@@ -1931,11 +1941,11 @@ flowchart TB
     end
 
     subgraph DATA_PLANE["Data Plane (RDS / ElastiCache / S3)"]
-      PG_Master[(PostgreSQL Primary
+      PG_Master[(PostgreSQL Primary (Phase 2+)
                   · Writer instance
-                  · db.r6g.large MVP
+                  · db.r6g.large
                   · 100GB gp3 storage)]
-      PG_Replica[(PostgreSQL Read Replica
+      PG_Replica[(PostgreSQL Read Replica (Phase 2+)
                    · Reader instance
                    · Analytics queries
                    · Brief generation)]
@@ -1964,8 +1974,8 @@ flowchart TB
   subgraph STAGING["Staging Environment"]
     STG_WEB["Next.js (Vercel Preview)"]
     STG_API["FastAPI (1 pod)"]
-    STG_PG[(PostgreSQL
-            · db.r6g.large
+    STG_PG[(SQLite (staging)
+            · Same schema as prod
             · Anonymized data)]
     STG_REDIS[(Redis
                · 1GB)]
@@ -1974,7 +1984,7 @@ flowchart TB
   subgraph DEV["Development"]
     DEV_ENV["Local
              · Docker Compose
-             · PostgreSQL
+             · SQLite (embedded) + ChromaDB (local)
              · Redis
              · MinIO (S3 mock)
              · ngrok for webhooks"]
@@ -2281,7 +2291,7 @@ This prevents any single provider outage from rendering the entire system unusab
 | **Content Brief** | A daily or weekly summary of suggested post topics generated from the user's GitHub activity, knowledge base, and trending topics |
 | **BFF** | Backend For Frontend — an API layer that serves frontend-specific data shapes |
 | **Arq** | An async Redis-backed job queue for Python, used for background content generation tasks |
-| **pgvector** | A PostgreSQL extension that adds vector similarity search capabilities |
+| **ChromaDB** | An open-source vector database for storing and searching embedding vectors, used as BrandOS's primary vector store |
 
 ---
 

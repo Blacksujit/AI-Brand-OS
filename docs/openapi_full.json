@@ -1,0 +1,4899 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BrandOS API",
+    "version": "1.0.0",
+    "description": "AI-powered personal brand operating system",
+    "contact": {
+      "name": "BrandOS Team",
+      "url": "https://brandos.app"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.brandos.app/api/v1",
+      "description": "Production"
+    },
+    {
+      "url": "https://staging-api.brandos.app/api/v1",
+      "description": "Staging"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Register a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthRegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created"
+          },
+          "409": {
+            "description": "Email exists"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Create a new user account with email and password"
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Login with email and password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthLoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Authenticate with email and password, receive access and refresh tokens"
+      }
+    },
+    "/auth/oauth": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "OAuth authentication",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "provider",
+                  "code"
+                ],
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "google",
+                      "github",
+                      "apple"
+                    ]
+                  },
+                  "code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Authenticate via OAuth 2.0 provider (Google, GitHub, or Apple)"
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Refresh access token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refresh_token"
+                ],
+                "properties": {
+                  "refresh_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens refreshed"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Exchange a valid refresh token for a new access token pair"
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Revoke tokens",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Logged out"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Revoke all active tokens for the current session"
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Get current user",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User profile",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Retrieve the currently authenticated user's profile and account information"
+      }
+    },
+    "/auth/change-password": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Change password",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "current_password",
+                  "new_password"
+                ],
+                "properties": {
+                  "current_password": {
+                    "type": "string"
+                  },
+                  "new_password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Password changed"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Change the current user's password (requires current password verification)"
+      }
+    },
+    "/profile": {
+      "get": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Get profile",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Retrieve the authenticated user's full profile including bio, avatar, and links"
+      },
+      "patch": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Update profile",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Update the authenticated user's profile fields"
+      }
+    },
+    "/profile/preferences": {
+      "patch": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Update preferences",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Update user preferences (theme, notification settings, content defaults)"
+      }
+    },
+    "/profile/expertise": {
+      "post": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Add expertise",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Add a new expertise area or skill tag to the user's profile"
+      }
+    },
+    "/profile/expertise/{expertiseId}": {
+      "delete": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Remove expertise",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "expertiseId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Remove an expertise area from the user's profile"
+      }
+    },
+    "/profile/onboarding/complete": {
+      "post": {
+        "tags": [
+          "Profile"
+        ],
+        "summary": "Complete onboarding",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Mark the onboarding flow as completed and enable all features"
+      }
+    },
+    "/connections": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "List connections",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Connection list",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "github",
+                "linkedin",
+                "twitter",
+                "medium"
+              ],
+              "description": "Filter by platform"
+            }
+          }
+        ],
+        "description": "List all third-party platform connections with their sync status"
+      }
+    },
+    "/connections/oauth-url": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Get OAuth URL",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OAuth URL"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Generate an OAuth 2.0 authorization URL for a specified platform"
+      }
+    },
+    "/connections/callback": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Complete OAuth",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Connected"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Complete OAuth 2.0 handshake by exchanging the callback code for tokens"
+      }
+    },
+    "/connections/{connectionId}": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Get connection",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Connection",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Retrieve details and status for a specific platform connection"
+      },
+      "delete": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Disconnect",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Disconnected"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Disconnect and revoke access for a specific platform connection"
+      }
+    },
+    "/connections/{connectionId}/refresh": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Refresh token",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token refreshed"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Manually refresh the OAuth 2.0 access token for a connection"
+      }
+    },
+    "/connections/github/repos": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "List repos",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repo list",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "List GitHub repositories accessible through the authenticated connection"
+      }
+    },
+    "/connections/github/selected-repos": {
+      "put": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Select repos",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Update the set of GitHub repositories selected for syncing"
+      }
+    },
+    "/connections/github/sync": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Trigger sync",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Sync started"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Trigger an immediate GitHub-to-knowledge-base synchronization"
+      }
+    },
+    "/connections/github/sync/{syncId}": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Sync status",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "syncId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sync status",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Poll the status of a GitHub synchronization job"
+      }
+    },
+    "/kb/items": {
+      "get": {
+        "tags": [
+          "Knowledge Base"
+        ],
+        "summary": "List items",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 25
+            }
+          },
+          {
+            "name": "contentType",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "documentation",
+                "code",
+                "issue",
+                "discussion",
+                "note",
+                "snippet"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "archived"
+              ]
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item list",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "List knowledge base items with optional filtering by type, status, and tags"
+      },
+      "post": {
+        "tags": [
+          "Knowledge Base"
+        ],
+        "summary": "Create item",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Create a new knowledge base item (documentation, code, note, etc.)"
+      }
+    },
+    "/kb/items/{itemId}": {
+      "get": {
+        "tags": [
+          "Knowledge Base"
+        ],
+        "summary": "Get item",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item detail",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Retrieve a single knowledge base item by ID with full content"
+      },
+      "patch": {
+        "tags": [
+          "Knowledge Base"
+        ],
+        "summary": "Update item",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Update a knowledge base item's content, title, or metadata"
+      },
+      "delete": {
+        "tags": [
+          "Knowledge Base"
+        ],
+        "summary": "Delete item",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Delete a knowledge base item permanently"
+      }
+    },
+    "/kb/items/{itemId}/related": {
+      "get": {
+        "tags": [
+          "Knowledge Base"
+        ],
+        "summary": "Related items",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 5
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Related list",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Find semantically related knowledge base items using vector similarity"
+      }
+    },
+    "/kb/search": {
+      "get": {
+        "tags": [
+          "Knowledge Base"
+        ],
+        "summary": "Hybrid search",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            }
+          },
+          {
+            "name": "alpha",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "default": 0.5
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Results",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Full-text and semantic hybrid search across all knowledge base items"
+      }
+    },
+    "/kb/tags": {
+      "get": {
+        "tags": [
+          "Knowledge Base"
+        ],
+        "summary": "List tags",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tag list",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          }
+        ],
+        "description": "List all tags used across the knowledge base with usage counts"
+      }
+    },
+    "/kb/tags/suggest": {
+      "post": {
+        "tags": [
+          "Knowledge Base"
+        ],
+        "summary": "Suggest tags",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suggestions"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Generate AI-powered tag suggestions for a given piece of content"
+      }
+    },
+    "/kb/tags/merge": {
+      "post": {
+        "tags": [
+          "Knowledge Base"
+        ],
+        "summary": "Merge tags",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merged"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Merge two or more tags into a single canonical tag"
+      }
+    },
+    "/kb/tags/{tagId}": {
+      "delete": {
+        "tags": [
+          "Knowledge Base"
+        ],
+        "summary": "Delete tag",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tagId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Delete a tag and remove it from all associated items"
+      }
+    },
+    "/kb/embedding-status": {
+      "get": {
+        "tags": [
+          "Knowledge Base"
+        ],
+        "summary": "Embedding status",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Check the status of vector embedding generation for knowledge base items"
+      }
+    },
+    "/style/profile": {
+      "get": {
+        "tags": [
+          "Style Analysis"
+        ],
+        "summary": "Get style profile",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Style profile",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Retrieve the user's AI-generated writing style profile"
+      },
+      "patch": {
+        "tags": [
+          "Style Analysis"
+        ],
+        "summary": "Update preferences",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Update the writing style profile with manual adjustments"
+      }
+    },
+    "/style/progress": {
+      "get": {
+        "tags": [
+          "Style Analysis"
+        ],
+        "summary": "Get progress",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Progress",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Get the style learning progress (number of samples analyzed, confidence score)"
+      }
+    },
+    "/style/analyze": {
+      "post": {
+        "tags": [
+          "Style Analysis"
+        ],
+        "summary": "Trigger analysis",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Started"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Submit content samples for AI writing style analysis"
+      }
+    },
+    "/style/import": {
+      "post": {
+        "tags": [
+          "Style Analysis"
+        ],
+        "summary": "Import samples",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Imported"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Import existing published content to accelerate style learning"
+      }
+    },
+    "/style/insights": {
+      "get": {
+        "tags": [
+          "Style Analysis"
+        ],
+        "summary": "Get insights",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Insights",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Get actionable insights about the user's writing patterns and suggestions"
+      }
+    },
+    "/briefs": {
+      "get": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "List briefs",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Brief list",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "acknowledged",
+                "dismissed"
+              ],
+              "description": "Filter by brief status"
+            }
+          }
+        ],
+        "description": "List content briefs generated from trend analysis and scheduled topics"
+      }
+    },
+    "/briefs/generate": {
+      "post": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Generate briefs",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Generating"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Generate a new content brief from trending topics in the user's expertise areas"
+      }
+    },
+    "/briefs/{briefId}": {
+      "get": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Get brief",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "briefId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Brief detail",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Retrieve a specific content brief with full detail"
+      }
+    },
+    "/briefs/{briefId}/acknowledge": {
+      "post": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Acknowledge brief",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "briefId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Acknowledged"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Mark a content brief as reviewed and acknowledged"
+      }
+    },
+    "/briefs/{briefId}/dismiss": {
+      "post": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Dismiss brief",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "briefId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dismissed"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Dismiss a content brief (removes from active queue)"
+      }
+    },
+    "/briefs/{briefId}/ideas": {
+      "get": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "List ideas",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "briefId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Idea list",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "List AI-generated content ideas derived from a specific brief"
+      }
+    },
+    "/briefs/schedule": {
+      "get": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Get schedule",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          }
+        ],
+        "description": "List all content brief generation schedules with cadence and status"
+      },
+      "post": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Create schedule",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Create a recurring schedule for automated content brief generation"
+      }
+    },
+    "/briefs/schedule/{scheduleId}": {
+      "patch": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Update schedule",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scheduleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Update a brief generation schedule's cadence or parameters"
+      },
+      "delete": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Delete schedule",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scheduleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Delete a brief generation schedule"
+      }
+    },
+    "/ideas/{ideaId}/approve": {
+      "post": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Approve idea",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Approved"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Approve a content idea, moving it to the drafting queue"
+      }
+    },
+    "/ideas/{ideaId}/reject": {
+      "post": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Reject idea",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rejected"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Reject a content idea with optional reason"
+      }
+    },
+    "/ideas/{ideaId}/draft": {
+      "post": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Generate draft",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ideaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Draft created"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Generate an AI draft from an approved content idea"
+      }
+    },
+    "/drafts/{draftId}": {
+      "get": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Get draft",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Draft",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Retrieve a single draft with full content and metadata"
+      },
+      "patch": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Update draft",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Update a draft's content, title, or metadata"
+      }
+    },
+    "/drafts/{draftId}/revise": {
+      "post": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Revise draft",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Revising"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Request an AI revision of a draft with specific instructions"
+      }
+    },
+    "/drafts/{draftId}/revisions": {
+      "get": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "List revisions",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revision list",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "List all revision history entries for a draft"
+      }
+    },
+    "/drafts/{draftId}/revisions/{revisionId}": {
+      "get": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Get revision",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revisionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revision",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Retrieve a specific revision entry"
+      }
+    },
+    "/drafts/{draftId}/approve": {
+      "post": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Approve draft",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Approved"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Mark a draft as approved and ready for scheduling/publication"
+      }
+    },
+    "/content/history": {
+      "get": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Content history",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "History",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "scheduled",
+                "published",
+                "failed"
+              ],
+              "description": "Filter by content status"
+            }
+          }
+        ],
+        "description": "List all published and scheduled content items in chronological order"
+      }
+    },
+    "/content/{contentId}/rate": {
+      "post": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Rate content",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Rate a published content item's performance (1-5 stars)"
+      }
+    },
+    "/content/{contentId}/schedule": {
+      "post": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Schedule content",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scheduled"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Schedule a content item for publication at a specific time"
+      }
+    },
+    "/content/{contentId}/cancel-schedule": {
+      "post": {
+        "tags": [
+          "Content Engine"
+        ],
+        "summary": "Cancel schedule",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "contentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Cancel a previously scheduled publication"
+      }
+    },
+    "/platform/publish": {
+      "post": {
+        "tags": [
+          "Platform Publishing"
+        ],
+        "summary": "Publish content",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Publishing"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Publish content to one or more connected platforms"
+      }
+    },
+    "/platform/publications": {
+      "get": {
+        "tags": [
+          "Platform Publishing"
+        ],
+        "summary": "List publications",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Publication list",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "in_progress",
+                "completed",
+                "failed"
+              ],
+              "description": "Filter by publication status"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Filter by target platform"
+            }
+          }
+        ],
+        "description": "List all publication records with cross-platform status"
+      }
+    },
+    "/platform/publications/{publicationId}": {
+      "get": {
+        "tags": [
+          "Platform Publishing"
+        ],
+        "summary": "Get publication",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "publicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Publication",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Retrieve a specific publication record with per-platform status"
+      }
+    },
+    "/platform/publications/{publicationId}/cancel": {
+      "post": {
+        "tags": [
+          "Platform Publishing"
+        ],
+        "summary": "Cancel publication",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "publicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Cancel an in-progress or scheduled publication"
+      }
+    },
+    "/platform/publications/{publicationId}/metrics": {
+      "get": {
+        "tags": [
+          "Platform Publishing"
+        ],
+        "summary": "Get metrics",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "publicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metrics",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Retrieve analytics for a specific publication"
+      }
+    },
+    "/trends": {
+      "get": {
+        "tags": [
+          "Trends"
+        ],
+        "summary": "Get trending topics",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trends",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          },
+          {
+            "name": "minRelevance",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Minimum relevance score filter"
+            }
+          }
+        ],
+        "description": "List trending topics with relevance scores for the user's expertise areas"
+      }
+    },
+    "/trends/{trendId}": {
+      "get": {
+        "tags": [
+          "Trends"
+        ],
+        "summary": "Get trend detail",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trendId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trend detail",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Retrieve details for a specific trending topic"
+      }
+    },
+    "/trends/sources": {
+      "get": {
+        "tags": [
+          "Trends"
+        ],
+        "summary": "List sources",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sources",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          }
+        ],
+        "description": "List configured trend monitoring sources and their status"
+      }
+    },
+    "/trends/sources/{sourceId}": {
+      "patch": {
+        "tags": [
+          "Trends"
+        ],
+        "summary": "Toggle source",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Update a trend source's configuration or enable/disable"
+      }
+    },
+    "/trends/relevance": {
+      "post": {
+        "tags": [
+          "Trends"
+        ],
+        "summary": "Score relevance",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scored"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Recalculate relevance scores for all tracked trends against user expertise"
+      }
+    },
+    "/analytics/dashboard": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Dashboard",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dashboard",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          }
+        ],
+        "description": "Get aggregate analytics dashboard data (posts, engagement, growth metrics)"
+      }
+    },
+    "/analytics/posts/{publicationId}": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Post analytics",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "publicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Post analytics",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Get per-post analytics for a specific publication"
+      }
+    },
+    "/analytics/engagement": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Engagement",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Engagement data",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7d",
+                "30d",
+                "90d"
+              ],
+              "description": "Time period for aggregation"
+            }
+          }
+        ],
+        "description": "Get engagement analytics (likes, comments, shares over time)"
+      }
+    },
+    "/analytics/audience": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Audience",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audience data",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7d",
+                "30d",
+                "90d"
+              ],
+              "description": "Time period for aggregation"
+            }
+          }
+        ],
+        "description": "Get audience demographics and growth analytics"
+      }
+    },
+    "/analytics/content-score": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Content score",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Content score",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          }
+        ],
+        "description": "Get content quality scoring across dimensions (readability, engagement prediction)"
+      }
+    },
+    "/analytics/export": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Export data",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv",
+                "json"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1,
+              "description": "Page number"
+            }
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Items per page"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File download",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Export analytics data in CSV or JSON format for external analysis"
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "List notifications",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notifications",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Opaque cursor for pagination (returned by previous response)"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Maximum items to return"
+            }
+          },
+          {
+            "name": "unreadOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "description": "Return only unread notifications"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sync",
+                "publication",
+                "system",
+                "trend"
+              ],
+              "description": "Filter by notification category"
+            }
+          }
+        ],
+        "description": "List all notifications for the authenticated user"
+      }
+    },
+    "/notifications/{notificationId}/read": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mark read",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "notificationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Marked"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Mark a specific notification as read"
+      }
+    },
+    "/notifications/read-all": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mark all read",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Done"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Mark all unread notifications as read"
+      }
+    },
+    "/notifications/preferences": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Get preferences",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preferences",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Get notification channel and category preferences"
+      },
+      "patch": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Update preferences",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Update notification preferences per channel and category"
+      }
+    },
+    "/admin/stats": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "System stats",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stats",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/admin/force-sync/{userId}": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Force sync",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Syncing"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Trigger a forced knowledge base sync for a specified user (admin only)"
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List users",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User list",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1,
+              "description": "Page number"
+            }
+          },
+          {
+            "name": "perPage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "maximum": 100,
+              "description": "Items per page"
+            }
+          }
+        ],
+        "description": "List all registered users with account status (admin only)"
+      }
+    },
+    "/admin/users/{userId}": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get user",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Retrieve a specific user's details and system status (admin only)"
+      }
+    },
+    "/admin/regenerate-embeddings": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Regenerate embeddings",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Started"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Trigger regeneration of all vector embeddings for the entire knowledge base"
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Healthy",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Basic health check returning server status and uptime"
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Readiness",
+        "responses": {
+          "200": {
+            "description": "Ready",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Readiness check verifying all dependencies (DB, Chroma, queue) are reachable"
+      }
+    },
+    "/health/live": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Liveness",
+        "responses": {
+          "200": {
+            "description": "Alive",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "public, max-age=60"
+                },
+                "description": "Caching directive"
+              },
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "example": "\"a1b2c3d4e5\""
+                },
+                "description": "Entity tag for conditional requests"
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Liveness check for load balancer health probes"
+      }
+    },
+    "/webhooks/github": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "GitHub push webhook",
+        "responses": {
+          "202": {
+            "description": "Received"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Receive GitHub webhook events (push, PR, issue) for live sync"
+      }
+    },
+    "/webhooks/linkedin": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "LinkedIn engagement webhook",
+        "responses": {
+          "202": {
+            "description": "Received"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Receive LinkedIn webhook events for cross-posting acknowledgments"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Bad Request — invalid syntax or parameters",
+        "headers": {
+          "X-Request-ID": {
+            "schema": {
+              "type": "string",
+              "example": "req_a1b2c3d4"
+            },
+            "description": "Request trace ID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Unauthorized — missing or invalid token",
+        "headers": {
+          "X-Request-ID": {
+            "schema": {
+              "type": "string",
+              "example": "req_a1b2c3d4"
+            },
+            "description": "Request trace ID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Forbidden — insufficient permissions",
+        "headers": {
+          "X-Request-ID": {
+            "schema": {
+              "type": "string",
+              "example": "req_a1b2c3d4"
+            },
+            "description": "Request trace ID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not Found — resource does not exist",
+        "headers": {
+          "X-Request-ID": {
+            "schema": {
+              "type": "string",
+              "example": "req_a1b2c3d4"
+            },
+            "description": "Request trace ID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Conflict — resource already exists or version mismatch",
+        "headers": {
+          "X-Request-ID": {
+            "schema": {
+              "type": "string",
+              "example": "req_a1b2c3d4"
+            },
+            "description": "Request trace ID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "UnprocessableEntity": {
+        "description": "Unprocessable Entity — validation failed",
+        "headers": {
+          "X-Request-ID": {
+            "schema": {
+              "type": "string",
+              "example": "req_a1b2c3d4"
+            },
+            "description": "Request trace ID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ValidationError"
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "Too Many Requests — rate limit exceeded",
+        "headers": {
+          "X-RateLimit-Reset": {
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Unix timestamp when limit resets"
+          },
+          "Retry-After": {
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Seconds to wait before retrying"
+          },
+          "X-Request-ID": {
+            "schema": {
+              "type": "string"
+            },
+            "description": "Request trace ID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "Internal Server Error",
+        "headers": {
+          "X-Request-ID": {
+            "schema": {
+              "type": "string",
+              "example": "req_a1b2c3d4"
+            },
+            "description": "Request trace ID"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "description": "Standard error response envelope for all API errors",
+        "example": {
+          "error": {
+            "code": "VALIDATION_ERROR",
+            "message": "Invalid request parameters",
+            "details": [
+              {
+                "field": "email",
+                "code": "INVALID_FORMAT",
+                "message": "Email format is invalid"
+              }
+            ],
+            "trace_id": "req_a1b2c3d4"
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "VALIDATION_ERROR"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "field",
+                    "code",
+                    "message"
+                  ],
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "trace_id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "description": "Validation error with per-field error details",
+        "example": {
+          "error": {
+            "code": "VALIDATION_ERROR",
+            "message": "Validation failed",
+            "details": [
+              {
+                "field": "email",
+                "code": "REQUIRED",
+                "message": "Email is required"
+              },
+              {
+                "field": "password",
+                "code": "MIN_LENGTH",
+                "message": "Password must be at least 8 characters"
+              }
+            ],
+            "trace_id": "req_x1y2z3"
+          }
+        }
+      }
+    }
+  }
+}

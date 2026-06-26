@@ -63,7 +63,7 @@ backend/
 ├── alembic/
 │   ├── versions/                # Migration scripts (one per change)
 │   │   ├── 001_initial_schema.py
-│   │   ├── 002_add_pgvector_hnsw_indexes.py
+│   │   ├── 002_add_chromadb_collections.py
 │   │   └── 003_partition_content_tables.py
 │   ├── env.py                   # Alembic environment config
 │   └── alembic.ini
@@ -464,7 +464,7 @@ frontend/
 ```
 infrastructure/
 ├── docker/
-│   ├── docker-compose.yml         # Dev: api + worker + postgres(pgvector) + redis + minio
+    │   ├── docker-compose.yml         # Dev: api + worker + sqlite + chromadb + redis + minio
 │   ├── docker-compose.prod.yml    # Prod overrides (replicas, secrets, logging driver)
 │   └── .env.example               # Docker Compose environment variables
 ├── k8s/                           # Kubernetes manifests (Phase 2+)
@@ -491,7 +491,7 @@ infrastructure/
     ├── variables.tf
     ├── outputs.tf
     ├── modules/
-    │   ├── rds/                   # PostgreSQL + pgvector
+    │   ├── rds/                   # Future PostgreSQL (post-MVP)
     │   ├── elasticache/           # Redis (cache + queue)
     │   ├── ecs/                   # Fargate (api + worker)
     │   └── s3/                    # User content storage
@@ -509,7 +509,7 @@ infrastructure/
 | Frontend | Vercel | Vercel (unchanged) |
 | API | Render (web service) | ECS Fargate + ALB |
 | Workers | Render (worker) | ECS Fargate (scheduled tasks) |
-| Database | Render PostgreSQL (managed) | RDS PostgreSQL + pgvector |
+| Database | SQLite (file-based) + ChromaDB (local) | RDS PostgreSQL + pgvector (post-MVP) |
 | Cache/Queue | Render Redis (managed) | ElastiCache Redis |
 | Storage | Render Disk (ephemeral) | S3 + CloudFront |
 | IaC | docker-compose.yml | Terraform + K8s |
@@ -551,7 +551,7 @@ scripts/
 ├── lint.sh                    # `ruff check . && mypy .`
 ├── test.sh                    # `pytest --cov=app`
 ├── reset-db.sh               # Drop + recreate + migrate + seed (dev only)
-└── backup-db.sh               # pg_dump to S3
+└── backup-db.sh               # SQLite VACUUM INTO + ChromaDB snapshot to S3
 ```
 
 ---

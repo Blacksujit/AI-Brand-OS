@@ -1,0 +1,405 @@
+{
+  "summary": {
+    "total_endpoints": 95,
+    "endpoints_with_issues": 44,
+    "total_issues": 56,
+    "errors": 0,
+    "warnings": 0,
+    "info": 56,
+    "score": 99.41
+  },
+  "issues": [
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /auth/logout",
+      "path": "/paths//auth/logout/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 204 for POST /auth/logout",
+      "path": "/paths//auth/logout/post/responses/204",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 204 for POST /auth/change-password",
+      "path": "/paths//auth/change-password/post/responses/204",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /profile",
+      "path": "/paths//profile/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /profile/preferences",
+      "path": "/paths//profile/preferences/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /profile/expertise",
+      "path": "/paths//profile/expertise/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /profile/onboarding/complete",
+      "path": "/paths//profile/onboarding/complete/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /connections/oauth-url",
+      "path": "/paths//connections/oauth-url/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /connections/callback",
+      "path": "/paths//connections/callback/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /connections/{connectionId}/refresh",
+      "path": "/paths//connections/{connectionId}/refresh/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PUT request typically should have request body: PUT /connections/github/selected-repos",
+      "path": "/paths//connections/github/selected-repos/put",
+      "suggestion": "Consider adding requestBody for PUT operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /connections/github/sync",
+      "path": "/paths//connections/github/sync/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /connections/github/sync",
+      "path": "/paths//connections/github/sync/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /kb/items",
+      "path": "/paths//kb/items/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /kb/items/{itemId}",
+      "path": "/paths//kb/items/{itemId}/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /kb/tags/suggest",
+      "path": "/paths//kb/tags/suggest/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /kb/tags/merge",
+      "path": "/paths//kb/tags/merge/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /style/profile",
+      "path": "/paths//style/profile/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /style/analyze",
+      "path": "/paths//style/analyze/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /style/analyze",
+      "path": "/paths//style/analyze/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /style/import",
+      "path": "/paths//style/import/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /briefs/generate",
+      "path": "/paths//briefs/generate/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /briefs/generate",
+      "path": "/paths//briefs/generate/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /briefs/{briefId}/acknowledge",
+      "path": "/paths//briefs/{briefId}/acknowledge/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /briefs/{briefId}/dismiss",
+      "path": "/paths//briefs/{briefId}/dismiss/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /briefs/schedule",
+      "path": "/paths//briefs/schedule/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /briefs/schedule/{scheduleId}",
+      "path": "/paths//briefs/schedule/{scheduleId}/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /ideas/{ideaId}/approve",
+      "path": "/paths//ideas/{ideaId}/approve/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /ideas/{ideaId}/reject",
+      "path": "/paths//ideas/{ideaId}/reject/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /ideas/{ideaId}/draft",
+      "path": "/paths//ideas/{ideaId}/draft/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /drafts/{draftId}",
+      "path": "/paths//drafts/{draftId}/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /drafts/{draftId}/revise",
+      "path": "/paths//drafts/{draftId}/revise/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /drafts/{draftId}/revise",
+      "path": "/paths//drafts/{draftId}/revise/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /drafts/{draftId}/approve",
+      "path": "/paths//drafts/{draftId}/approve/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /content/{contentId}/rate",
+      "path": "/paths//content/{contentId}/rate/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /content/{contentId}/schedule",
+      "path": "/paths//content/{contentId}/schedule/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /content/{contentId}/cancel-schedule",
+      "path": "/paths//content/{contentId}/cancel-schedule/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /platform/publish",
+      "path": "/paths//platform/publish/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /platform/publish",
+      "path": "/paths//platform/publish/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /platform/publications/{publicationId}/cancel",
+      "path": "/paths//platform/publications/{publicationId}/cancel/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /trends/sources/{sourceId}",
+      "path": "/paths//trends/sources/{sourceId}/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /trends/relevance",
+      "path": "/paths//trends/relevance/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /notifications/{notificationId}/read",
+      "path": "/paths//notifications/{notificationId}/read/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 204 for POST /notifications/{notificationId}/read",
+      "path": "/paths//notifications/{notificationId}/read/post/responses/204",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /notifications/read-all",
+      "path": "/paths//notifications/read-all/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 204 for POST /notifications/read-all",
+      "path": "/paths//notifications/read-all/post/responses/204",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "PATCH request typically should have request body: PATCH /notifications/preferences",
+      "path": "/paths//notifications/preferences/patch",
+      "suggestion": "Consider adding requestBody for PATCH operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "documentation",
+      "message": "Missing description for GET /admin/stats",
+      "path": "/paths//admin/stats/get/description",
+      "suggestion": "Add a detailed description for better API documentation"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /admin/force-sync/{userId}",
+      "path": "/paths//admin/force-sync/{userId}/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /admin/force-sync/{userId}",
+      "path": "/paths//admin/force-sync/{userId}/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /admin/regenerate-embeddings",
+      "path": "/paths//admin/regenerate-embeddings/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /admin/regenerate-embeddings",
+      "path": "/paths//admin/regenerate-embeddings/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /webhooks/github",
+      "path": "/paths//webhooks/github/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /webhooks/github",
+      "path": "/paths//webhooks/github/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    },
+    {
+      "severity": "info",
+      "category": "rest_conventions",
+      "message": "POST request typically should have request body: POST /webhooks/linkedin",
+      "path": "/paths//webhooks/linkedin/post",
+      "suggestion": "Consider adding requestBody for POST operation or use GET if no data is being sent"
+    },
+    {
+      "severity": "info",
+      "category": "responses",
+      "message": "Uncommon status code 202 for POST /webhooks/linkedin",
+      "path": "/paths//webhooks/linkedin/post/responses/202",
+      "suggestion": "Consider using standard codes for POST: [200, 201, 400, 409, 422]"
+    }
+  ]
+}
