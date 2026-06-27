@@ -101,8 +101,9 @@ class HistoryService:
         except Exception:
             logger.warning("pipeline_state_persist_failed", pipeline_id=pipeline_id)
 
-    def store_pipeline_state(self, pipeline_id: str, state: dict) -> None:
+    async def store_pipeline_state(self, pipeline_id: str, state: dict) -> None:
         self._pipeline_states[pipeline_id] = state
+        await self._persist_pipeline_state(pipeline_id, state)
 
     def get_pipeline_state(self, pipeline_id: str) -> dict | None:
         return self._pipeline_states.get(pipeline_id)
@@ -143,6 +144,7 @@ class HistoryService:
             title=title[:50],
             platform=platform,
         )
+        await self._persist_post(record)
         return record
 
     def get_history(

@@ -6,10 +6,11 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from api.deps import get_current_user_id, get_history_service, get_knowledge_service
+from api.deps import get_current_user_id, get_history_service, get_knowledge_service, get_trend_service, get_security_service
 from core.config import get_settings
 from core.llm import LLMClient
 from core.logging import get_logger
+from core.security import SecurityService
 from schemas.content import (
     EvaluateContentRequest,
     EvaluateContentResponse,
@@ -33,17 +34,25 @@ logger = get_logger(__name__)
 _content_graph = None
 
 
-def _get_content_graph(kb_service: KnowledgeBaseService | None = None):
+def _get_content_graph(kb_service: KnowledgeBaseService | None = None, trend_service: Any | None = None):
     global _content_graph
     if _content_graph is None:
         from application.graph.graph import build_content_graph
         from services.prompt.service import PromptService
+        from core.llm import LLMClient
+        from core.config import get_settings
+        from services.research import ResearchService  # IMPORT
 
         settings = get_settings()
+        
+        # Create and WIRE ResearchService with TrendService
+        research_service = ResearchService()
+        research_service.wire(trend_service)  # WIRE IT!
+
         _content_graph = build_content_graph(
             llm=LLMClient(settings),
             prompt_service=PromptService(),
-            research_service=ResearchService(),
+            research_service=research_service,  # PASS WIRED SERVICE
             kb_service=kb_service,
             langsmith_api_key=settings.langchain_api_key,
             langsmith_project=settings.langchain_project,
@@ -74,10 +83,11 @@ async def generate_content(
     user_id: uuid.UUID = Depends(get_current_user_id),
     history: HistoryService = Depends(get_history_service),
     kb: KnowledgeBaseService = Depends(get_knowledge_service),
+    trend: Any = Depends(get_trend_service),  # WIRE TREND SERVICE
 ) -> dict[str, Any]:
     import time as time_module
 
-    graph = _get_content_graph(kb_service=kb)
+    graph = _get_content_graph(kb_service=kb, trend_service=trend)
     start = time_module.time()
 
     pipeline_id = str(request.pipeline_id or uuid.uuid4())
@@ -128,7 +138,7 @@ async def generate_content(
             duration_ms=int((time_module.time() - start) * 1000),
         )
 
-    history.store_pipeline_state(pipeline_id, result)
+    await history.store_pipeline_state(pipeline_id, result)
 
     requires_approval = result.get("requires_human_approval", False)
     errors = result.get("errors", [])
@@ -206,12 +216,19 @@ async def get_pipeline_output(
 async def generate_ideas(
     request: IdeasRequest,
     user_id: uuid.UUID = Depends(get_current_user_id),
+    kb: KnowledgeBaseService = Depends(get_knowledge_service),
+    trend: Any = Depends(get_trend_service),
 ) -> list[dict[str, Any]]:
-    content_engine = ContentEngine()
+    settings = get_settings()
+    content_engine = ContentEngine(
+        llm=LLMClient(settings),
+        kb_service=kb,
+        trend_service=trend,
+    )
     ideas = await content_engine.generate_ideas(
-        topic_hint=request.topic or "",
+        user_id=user_id,
         count=request.count,
-        platform=request.platform,
+        expertise_areas=request.expertise_areas or [],
     )
     return [
         {

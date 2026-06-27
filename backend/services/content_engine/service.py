@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from core.llm import LLMClient
 from core.logging import get_logger
@@ -15,6 +16,8 @@ from services.content_engine.stages import (
     StageContext,
     StyleRefiner,
 )
+from services.knowledge import KnowledgeBaseService
+from services.trend import TrendService
 
 logger = get_logger(__name__)
 
@@ -38,9 +41,27 @@ class ContentEngine:
         draft_composer: DraftComposer | None = None,
         style_refiner: StyleRefiner | None = None,
         quality_gate: QualityGate | None = None,
+        
+        # Services to wire to ContextAggregator
+        kb_service: KnowledgeBaseService | None = None,
+        trend_service: TrendService | None = None,
+        github_service: Any | None = None,
     ) -> None:
         self._llm = llm
-        self._context_aggregator = context_aggregator or ContextAggregator()
+        
+        # Create context aggregator if not provided
+        if context_aggregator is None:
+            context_aggregator = ContextAggregator()
+        
+        # WIRE CONTEXT AGGREGATOR WITH SERVICES
+        if kb_service or trend_service or github_service:
+            context_aggregator.wire(
+                kb_service=kb_service,
+                trend_service=trend_service,
+                github_service=github_service,
+            )
+        self._context_aggregator = context_aggregator
+        
         self._idea_generator = idea_generator or IdeaGenerator(llm)
         self._draft_composer = draft_composer or DraftComposer(llm)
         self._style_refiner = style_refiner or StyleRefiner()

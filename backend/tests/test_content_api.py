@@ -157,7 +157,7 @@ class TestPipeline:
         _override_content_api_deps: HistoryService,
     ) -> None:
         pipeline_id = str(uuid.uuid4())
-        _override_content_api_deps.store_pipeline_state(
+        await _override_content_api_deps.store_pipeline_state(
             pipeline_id,
             {
                 "pipeline_id": pipeline_id,
@@ -184,7 +184,7 @@ class TestPipeline:
         _override_content_api_deps: HistoryService,
     ) -> None:
         pipeline_id = str(uuid.uuid4())
-        _override_content_api_deps.store_pipeline_state(
+        await _override_content_api_deps.store_pipeline_state(
             pipeline_id,
             {
                 "pipeline_id": pipeline_id,
@@ -211,7 +211,7 @@ class TestPipeline:
         _override_content_api_deps: HistoryService,
     ) -> None:
         pipeline_id = str(uuid.uuid4())
-        _override_content_api_deps.store_pipeline_state(
+        await _override_content_api_deps.store_pipeline_state(
             pipeline_id,
             {
                 "pipeline_id": pipeline_id,

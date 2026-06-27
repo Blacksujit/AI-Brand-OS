@@ -56,6 +56,7 @@ class IdeasRequest(BaseModel):
     topic: str | None = Field(default=None, max_length=500)
     platform: str = Field(default="linkedin", max_length=32)
     count: int = Field(default=5, ge=1, le=20)
+    expertise_areas: list[str] | None = Field(default=None, max_length=50)
 
 
 class IdeaResponse(BaseModel):

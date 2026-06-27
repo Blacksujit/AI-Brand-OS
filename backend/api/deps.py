@@ -15,6 +15,7 @@ from core.security import SecurityService
 from database import Database, get_db
 from models.user import User
 from repositories.content import AgentRunRepository, GeneratedPostRepository
+from services.auth import AuthService
 from services.history import HistoryService
 from services.knowledge import KnowledgeBaseService
 from services.style import StyleService
@@ -100,6 +101,13 @@ async def get_knowledge_service(
     embedding = EmbeddingService(settings)
     await chroma.initialize()
     return KnowledgeBaseService(db=db, chroma=chroma, embedding=embedding)
+
+
+async def get_auth_service(
+    db: Database = Depends(get_db_session),
+    security: SecurityService = Depends(get_security_service),
+) -> AuthService:
+    return AuthService(db=db, security=security)
 
 
 async def get_history_service(
