@@ -1,74 +1,50 @@
 from __future__ import annotations
 
+import os
+import tempfile
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import Any
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
+from httpx import ASGITransport, AsyncClient
 
-from app.core.cache import CacheService
-from app.core.config import Settings
-from app.core.db import Base, Database
-from app.core.security import SecurityService
+from core.config import Settings, get_settings
+from database import Database, get_db
+
+TEST_DB_DIR = Path(tempfile.gettempdir()) / "brandos_test"
+TEST_DB_DIR.mkdir(parents=True, exist_ok=True)
 
 
-@pytest.fixture
-def settings() -> Settings:
-    return Settings(
-        env="test",
-        debug=False,
-        database_url="sqlite+aiosqlite://",
-        redis_url="redis://localhost:6379/1",
-        jwt_secret="test-secret-that-is-at-least-32-characters!!",
-        encryption_key="test-encryption-key-32-bytes-long!!",
-        data_dir=Path("/tmp/brandos-test"),
-    )
+@pytest.fixture(autouse=True)
+def _test_env() -> None:
+    os.environ["BRANDOS_ENV"] = "test"
+    db_path = TEST_DB_DIR / f"test_{os.urandom(4).hex()}.db"
+    os.environ["BRANDOS_DATABASE_URL"] = f"sqlite+aiosqlite:///{db_path}"
+    os.environ["BRANDOS_LOG_LEVEL"] = "CRITICAL"
+    os.environ["BRANDOS_GEMINI_API_KEY"] = "test-key"
+    os.environ["BRANDOS_JWT_SECRET"] = "test-secret-that-is-long-enough-for-hs256"
 
 
-@pytest_asyncio.fixture
-async def db(settings: Settings) -> AsyncGenerator[Database, None]:
-    engine = create_async_engine(
-        settings.database_url,
-        echo=False,
-        connect_args={"check_same_thread": False},
-    )
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    session_factory = async_sessionmaker(
-        bind=engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
-    database = Database.__new__(Database)
-    database.engine = engine
-    database.session_factory = session_factory
-    database._data_dir = settings.data_dir
-
-    try:
-        yield database
-    finally:
-        await engine.dispose()
+@pytest.fixture(name="settings")
+def fixture_settings() -> Settings:
+    return get_settings()
 
 
-@pytest_asyncio.fixture
-async def session(db: Database) -> AsyncGenerator[AsyncSession, None]:
-    async with db.session_factory() as s:
-        yield s
-        await s.rollback()
+@pytest_asyncio.fixture(name="db")
+async def fixture_db(settings: Settings) -> AsyncGenerator[Database, None]:
+    db = get_db(settings)
+    await db.initialize()
+    yield db
+    await db.close()
 
 
-@pytest.fixture
-def security(settings: Settings) -> SecurityService:
-    return SecurityService(settings)
+@pytest_asyncio.fixture(name="client")
+async def fixture_client(db: Database) -> AsyncGenerator[AsyncClient, None]:
+    from main import app
 
+    app.state.db = db
 
-@pytest.fixture
-def token(security: SecurityService, test_user_id: Any) -> str:
-    return security.create_access_token(test_user_id)
+    transport = ASGITransport(app=app)  # type: ignore[arg-type]
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client

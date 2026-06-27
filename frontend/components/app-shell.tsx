@@ -14,12 +14,11 @@ import {
 } from "@/components/ui/sheet";
 
 const navItems = [
-  { label: "Dashboard", href: "/app", icon: "LayoutDashboard" },
-  { label: "Briefs", href: "/app/briefs", icon: "FileText" },
-  { label: "Content", href: "/app/content", icon: "PenSquare" },
-  { label: "Knowledge", href: "/app/knowledge", icon: "Brain" },
-  { label: "Analytics", href: "/app/analytics", icon: "BarChart3" },
-  { label: "Settings", href: "/app/settings", icon: "Settings" },
+  { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
+  { label: "Content", href: "/content", icon: "PenSquare" },
+  { label: "History", href: "/history", icon: "Clock" },
+  { label: "Knowledge", href: "/knowledge", icon: "Brain" },
+  { label: "Settings", href: "/settings", icon: "Settings" },
 ];
 
 export function Sidebar() {

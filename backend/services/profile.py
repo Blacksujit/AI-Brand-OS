@@ -19,16 +19,12 @@ class ProfileService:
 
     async def get_profile(self, user_id: uuid.UUID) -> dict[str, Any] | None:
         async with self._db.session() as session:
-            result = await session.execute(
-                select(Profile).where(Profile.user_id == user_id)
-            )
+            result = await session.execute(select(Profile).where(Profile.user_id == user_id))
             profile = result.scalar_one_or_none()
             if profile is None:
                 return None
 
-            user_result = await session.execute(
-                select(User).where(User.id == user_id)
-            )
+            user_result = await session.execute(select(User).where(User.id == user_id))
             user = user_result.scalar_one_or_none()
             if user is None:
                 return None
@@ -44,18 +40,12 @@ class ProfileService:
                 "location": profile.location,
                 "preferences": profile.preferences or {},
                 "created_at": profile.created_at.isoformat(),
-                "updated_at": profile.updated_at.isoformat()
-                if profile.updated_at
-                else None,
+                "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
             }
 
-    async def update_profile(
-        self, user_id: uuid.UUID, updates: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def update_profile(self, user_id: uuid.UUID, updates: dict[str, Any]) -> dict[str, Any]:
         async with self._db.session() as session:
-            result = await session.execute(
-                select(Profile).where(Profile.user_id == user_id)
-            )
+            result = await session.execute(select(Profile).where(Profile.user_id == user_id))
             profile = result.scalar_one_or_none()
             if profile is None:
                 profile = Profile(user_id=user_id)
@@ -67,9 +57,7 @@ class ProfileService:
                     setattr(profile, field, value)
 
             if "display_name" in updates:
-                user_result = await session.execute(
-                    select(User).where(User.id == user_id)
-                )
+                user_result = await session.execute(select(User).where(User.id == user_id))
                 user = user_result.scalar_one_or_none()
                 if user:
                     user.display_name = updates["display_name"]
@@ -81,16 +69,13 @@ class ProfileService:
         self, user_id: uuid.UUID, onboarding_data: dict[str, Any]
     ) -> dict[str, Any]:
         async with self._db.session() as session:
-            user_result = await session.execute(
-                select(User).where(User.id == user_id)
-            )
+            user_result = await session.execute(select(User).where(User.id == user_id))
             user = user_result.scalar_one_or_none()
             if user is None:
-                raise ValueError("User not found")
+                msg = "User not found"
+                raise ValueError(msg)
 
-            result = await session.execute(
-                select(Profile).where(Profile.user_id == user_id)
-            )
+            result = await session.execute(select(Profile).where(Profile.user_id == user_id))
             profile = result.scalar_one_or_none()
             if profile is None:
                 profile = Profile(user_id=user_id)

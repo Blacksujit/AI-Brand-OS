@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
@@ -10,9 +10,9 @@ from api.deps import (
     get_db_session,
     get_security_service,
 )
-from database import Database
 from core.logging import get_logger
 from core.security import SecurityService
+from database import Database
 from models.user import Session, User
 from schemas.auth import (
     LoginRequest,
@@ -33,9 +33,7 @@ async def register(
     security: SecurityService = Depends(get_security_service),
 ) -> TokenResponse:
     async with db.session() as session:
-        result = await session.execute(
-            select(User).where(User.email == body.email)
-        )
+        result = await session.execute(select(User).where(User.email == body.email))
         if result.scalar_one_or_none() is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -54,9 +52,7 @@ async def register(
         session_record = Session(
             user_id=user.id,
             refresh_token_hash=security.hash_password(str(uuid.uuid4())),
-            expires_at=datetime.now(timezone.utc).replace(
-                day=datetime.now(timezone.utc).day + 7
-            ),
+            expires_at=datetime.now(UTC).replace(day=datetime.now(UTC).day + 7),
             user_agent=request.headers.get("user-agent"),
         )
         session.add(session_record)
@@ -79,13 +75,9 @@ async def login(
     security: SecurityService = Depends(get_security_service),
 ) -> TokenResponse:
     async with db.session() as session:
-        result = await session.execute(
-            select(User).where(User.email == body.email)
-        )
+        result = await session.execute(select(User).where(User.email == body.email))
         user = result.scalar_one_or_none()
-        if user is None or not security.verify_password(
-            body.password, user.password_hash
-        ):
+        if user is None or not security.verify_password(body.password, user.password_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password",
@@ -97,14 +89,12 @@ async def login(
                 detail="Account is deactivated",
             )
 
-        user.last_login_at = datetime.now(timezone.utc)
+        user.last_login_at = datetime.now(UTC)
 
         session_record = Session(
             user_id=user.id,
             refresh_token_hash=security.hash_password(str(uuid.uuid4())),
-            expires_at=datetime.now(timezone.utc).replace(
-                day=datetime.now(timezone.utc).day + 7
-            ),
+            expires_at=datetime.now(UTC).replace(day=datetime.now(UTC).day + 7),
             user_agent=request.headers.get("user-agent"),
         )
         session.add(session_record)
@@ -161,7 +151,7 @@ async def logout(
             sessions = await session.execute(
                 select(Session).where(
                     Session.user_id == user_id,
-                    Session.is_revoked == False,
+                    not Session.is_revoked,
                 )
             )
             for sess in sessions.scalars().all():

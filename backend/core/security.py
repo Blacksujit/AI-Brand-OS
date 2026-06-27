@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from passlib.context import CryptContext
@@ -23,10 +23,8 @@ class SecurityService:
     def verify_password(self, plain: str, hashed: str) -> bool:
         return self._pwd_context.verify(plain, hashed)
 
-    def create_access_token(
-        self, user_id: uuid.UUID, session_id: uuid.UUID | None = None
-    ) -> str:
-        now = datetime.now(timezone.utc)
+    def create_access_token(self, user_id: uuid.UUID, session_id: uuid.UUID | None = None) -> str:
+        now = datetime.now(UTC)
         payload = {
             "sub": str(user_id),
             "sid": str(session_id or uuid.uuid4()),
@@ -37,7 +35,7 @@ class SecurityService:
         return jwt.encode(payload, self._secret, algorithm=self._algorithm)
 
     def create_refresh_token(self, user_id: uuid.UUID) -> str:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         payload = {
             "sub": str(user_id),
             "type": "refresh",

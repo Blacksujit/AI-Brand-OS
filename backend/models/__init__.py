@@ -1,17 +1,25 @@
 from models.base import TimestampedModel, UUIDModel
-from models.user import User, Session
-from models.profile import Profile
+from models.content import AgentRun, GeneratedPost
 from models.knowledge import KnowledgeEntry, KnowledgeTag
-from models.content import GeneratedPost, AgentRun
+from models.profile import Profile
+from models.style import StyleProfile, StyleRating, StyleSignal
+from models.trend import TrendAnalysis, TrendSignal, TrendTopic
+from models.user import Session, User
 
 __all__ = [
-    "TimestampedModel",
-    "UUIDModel",
-    "User",
-    "Session",
-    "Profile",
+    "AgentRun",
+    "GeneratedPost",
     "KnowledgeEntry",
     "KnowledgeTag",
-    "GeneratedPost",
-    "AgentRun",
+    "Profile",
+    "Session",
+    "StyleProfile",
+    "StyleRating",
+    "StyleSignal",
+    "TimestampedModel",
+    "TrendAnalysis",
+    "TrendSignal",
+    "TrendTopic",
+    "UUIDModel",
+    "User",
 ]

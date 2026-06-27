@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+exec /mnt/c/Users/Sujit\ Nirmal/.bun/bin/bun.exe "$@"

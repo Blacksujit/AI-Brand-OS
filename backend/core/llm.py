@@ -4,7 +4,6 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -54,9 +53,11 @@ class CompletionResponse:
 class LLMClient:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._clients: dict[str, ChatGoogleGenerativeAI] = {}
+        self._clients: dict[str, Any] = {}
 
-    def _get_client(self, model: str) -> ChatGoogleGenerativeAI:
+    def _get_client(self, model: str) -> Any:
+        from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: PLC0415
+
         if model not in self._clients:
             self._clients[model] = ChatGoogleGenerativeAI(
                 model=model,
@@ -66,9 +67,7 @@ class LLMClient:
             )
         return self._clients[model]
 
-    def _to_langchain_messages(
-        self, request: CompletionRequest
-    ) -> list[BaseMessage]:
+    def _to_langchain_messages(self, request: CompletionRequest) -> list[BaseMessage]:
         messages: list[BaseMessage] = []
         if request.system_prompt:
             messages.append(SystemMessage(content=request.system_prompt))
@@ -94,9 +93,7 @@ class LLMClient:
         content = response.content if isinstance(response.content, str) else ""
         finish_reason: Literal["stop", "length"] = "stop"
         if response.response_metadata:
-            finish_reason = response.response_metadata.get(
-                "finish_reason", "stop"
-            )
+            finish_reason = response.response_metadata.get("finish_reason", "stop")
 
         usage = TokenUsage(
             prompt_tokens=response.usage_metadata.get("input_tokens", 0)

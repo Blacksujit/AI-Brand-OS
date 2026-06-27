@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from core.config import Settings
 from core.logging import get_logger
 
@@ -43,9 +41,7 @@ class EmbeddingService:
         embeddings = model.encode(texts, normalize_embeddings=True)
         return [emb.tolist() for emb in embeddings]
 
-    async def cosine_similarity(
-        self, a: list[float], b: list[float]
-    ) -> float:
+    async def cosine_similarity(self, a: list[float], b: list[float]) -> float:
         import math
 
         dot = sum(x * y for x, y in zip(a, b, strict=True))

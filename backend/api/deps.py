@@ -8,10 +8,12 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 
 from core.config import Settings, get_settings
-from database import Database, get_db
 from core.logging import get_logger
 from core.security import SecurityService
-from models.user import Session, User
+from database import Database, get_db
+from models.user import User
+from services.style import StyleService
+from services.trend import TrendService
 
 security_scheme = HTTPBearer()
 logger = get_logger(__name__)
@@ -53,14 +55,24 @@ async def get_current_user_id(
         ) from e
 
 
+async def get_style_service(
+    db: Database = Depends(get_db_session),
+) -> StyleService:
+    return StyleService(db=db)
+
+
+async def get_trend_service(
+    db: Database = Depends(get_db_session),
+) -> TrendService:
+    return TrendService(db=db)
+
+
 async def require_onboarded(
     user_id: uuid.UUID = Depends(get_current_user_id),
     db: Database = Depends(get_db_session),
 ) -> uuid.UUID:
     async with db.session() as session:
-        result = await session.execute(
-            select(User).where(User.id == user_id)
-        )
+        result = await session.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         if user is None or not user.is_onboarded:
             raise HTTPException(
