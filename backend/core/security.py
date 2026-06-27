@@ -29,6 +29,7 @@ class SecurityService:
             "sub": str(user_id),
             "sid": str(session_id or uuid.uuid4()),
             "type": "access",
+            "aud": "brandos-api",
             "iat": now,
             "exp": now + self._access_ttl,
         }
@@ -38,11 +39,24 @@ class SecurityService:
         now = datetime.now(UTC)
         payload = {
             "sub": str(user_id),
+            "jti": str(uuid.uuid4()),
             "type": "refresh",
+            "aud": "brandos-api",
             "iat": now,
             "exp": now + self._refresh_ttl,
         }
         return jwt.encode(payload, self._secret, algorithm=self._algorithm)
 
     def decode_token(self, token: str) -> dict:
-        return jwt.decode(token, self._secret, algorithms=[self._algorithm])
+        return jwt.decode(
+            token,
+            self._secret,
+            algorithms=[self._algorithm],
+            audience="brandos-api",
+        )
+
+    def verify_token(self, token: str) -> dict | None:
+        try:
+            return self.decode_token(token)
+        except Exception:
+            return None

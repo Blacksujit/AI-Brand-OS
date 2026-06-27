@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 
@@ -52,7 +53,7 @@ async def register(
         session_record = Session(
             user_id=user.id,
             refresh_token_hash=security.hash_password(str(uuid.uuid4())),
-            expires_at=datetime.now(UTC).replace(day=datetime.now(UTC).day + 7),
+            expires_at=datetime.now(UTC) + timedelta(days=7),
             user_agent=request.headers.get("user-agent"),
         )
         session.add(session_record)
@@ -94,7 +95,7 @@ async def login(
         session_record = Session(
             user_id=user.id,
             refresh_token_hash=security.hash_password(str(uuid.uuid4())),
-            expires_at=datetime.now(UTC).replace(day=datetime.now(UTC).day + 7),
+            expires_at=datetime.now(UTC) + timedelta(days=7),
             user_agent=request.headers.get("user-agent"),
         )
         session.add(session_record)
@@ -122,7 +123,7 @@ async def refresh_token(
                 detail="Invalid token type",
             )
         user_id = uuid.UUID(payload["sub"])
-    except Exception as e:
+    except (ValueError, KeyError, jwt.PyJWTError) as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",

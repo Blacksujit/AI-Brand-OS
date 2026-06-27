@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 
 class ContentState(TypedDict):
     user_id: str
     session_id: str
     pipeline_id: str
-    topic: Optional[str]
+    topic: str | None
     platform: str
     tone: str
     max_length: int
@@ -16,16 +16,16 @@ class ContentState(TypedDict):
     errors: list[str]
     requires_human_approval: bool
 
-    research_output: Optional[dict]
-    knowledge_output: Optional[dict]
-    memory_output: Optional[dict]
-    topic_output: Optional[dict]
-    strategy_output: Optional[dict]
-    hooks_output: Optional[dict]
-    draft_output: Optional[dict]
-    review_output: Optional[dict]
-    analytics_output: Optional[dict]
+    research_output: dict | None
+    knowledge_output: dict | None
+    memory_output: dict | None
+    topic_output: dict | None
+    strategy_output: dict | None
+    hooks_output: dict | None
+    draft_output: dict | None
+    review_output: dict | None
+    analytics_output: dict | None
 
-    final_output: Optional[dict]
+    final_output: dict | None
 
     step_timing: dict[str, float]

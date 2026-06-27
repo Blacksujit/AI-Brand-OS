@@ -7,11 +7,16 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 
+from core.chroma import ChromaService
 from core.config import Settings, get_settings
+from core.embedding import EmbeddingService
 from core.logging import get_logger
 from core.security import SecurityService
 from database import Database, get_db
 from models.user import User
+from repositories.content import AgentRunRepository, GeneratedPostRepository
+from services.history import HistoryService
+from services.knowledge import KnowledgeBaseService
 from services.style import StyleService
 from services.trend import TrendService
 
@@ -39,20 +44,25 @@ async def get_current_user_id(
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
     security: SecurityService = Depends(get_security_service),
 ) -> uuid.UUID:
-    try:
-        payload = security.decode_token(credentials.credentials)
-        if payload.get("type") != "access":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token type",
-            )
-        return uuid.UUID(payload["sub"])
-    except (ValueError, KeyError, Exception) as e:
-        logger.warning("token_decode_failed", error=str(e))
+    payload = security.verify_token(credentials.credentials)
+    if payload is None:
+        logger.warning("token_decode_failed")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
-        ) from e
+        )
+    if payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token type",
+        )
+    try:
+        return uuid.UUID(payload["sub"])
+    except (ValueError, KeyError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+        )
 
 
 async def get_style_service(
@@ -80,3 +90,19 @@ async def require_onboarded(
                 detail="User has not completed onboarding",
             )
     return user_id
+
+
+async def get_knowledge_service(
+    db: Database = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> KnowledgeBaseService:
+    chroma = ChromaService(settings)
+    embedding = EmbeddingService(settings)
+    await chroma.initialize()
+    return KnowledgeBaseService(db=db, chroma=chroma, embedding=embedding)
+
+
+async def get_history_service(
+    db: Database = Depends(get_db_session),
+) -> HistoryService:
+    return HistoryService(db=db)

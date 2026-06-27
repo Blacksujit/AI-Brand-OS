@@ -90,4 +90,18 @@ class ProfileService:
             if "display_name" in onboarding_data:
                 user.display_name = onboarding_data["display_name"]
 
-            return await self.get_profile(user_id)  # type: ignore[return-value]
+            await session.flush()
+
+            return {
+                "id": str(profile.id),
+                "user_id": str(profile.user_id),
+                "display_name": user.display_name,
+                "email": user.email,
+                "avatar_url": user.avatar_url,
+                "bio": profile.bio,
+                "website": profile.website,
+                "location": profile.location,
+                "preferences": profile.preferences or {},
+                "created_at": profile.created_at.isoformat(),
+                "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
+            }

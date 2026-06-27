@@ -108,7 +108,8 @@ class KnowledgeBaseService:
                 return False
             await repo.delete_entry(entry_id)
 
-        await self._chroma.delete_embedding("kb", str(entry_id))
+        if self._chroma._client is not None:
+            await self._chroma.delete_embedding("kb", str(entry_id))
         return True
 
     async def list_entries(
@@ -148,40 +149,44 @@ class KnowledgeBaseService:
         query_text: str,
         limit: int = 10,
     ) -> KnowledgeSearchResponse:
-        query_embedding = await self._embedding.embed_text(query_text)
-
-        chroma_results = await self._chroma.query_embeddings(
-            "kb",
-            query_embedding,
-            n_results=limit,
-            where={"user_id": str(user_id)},
-        )
-
-        chroma_ids: list[str] = (
-            chroma_results.get("ids", [[]])[0] if chroma_results.get("ids") else []
-        )
-        chroma_distances: list[float] = (
-            chroma_results.get("distances", [[]])[0] if chroma_results.get("distances") else []
-        )
-
         results: list[KnowledgeSearchResult] = []
-        async with self._db.session() as session:
-            repo = KnowledgeEntryRepository(session)
-            for cid, dist in zip(chroma_ids, chroma_distances, strict=True):
-                entry_id = cid.replace("kb_", "")
-                try:
-                    entry = await repo.get_by_id(uuid.UUID(entry_id))
-                except Exception:
-                    continue
-                if entry and entry.user_id == user_id:
-                    score = 1.0 - dist if dist <= 1.0 else 0.0
-                    results.append(
-                        KnowledgeSearchResult(
-                            item=self._to_list_item(entry),
-                            score=round(score, 4),
-                            match_type="semantic",
+
+        if self._chroma._client is not None:
+            query_embedding = await self._embedding.embed_text(query_text)
+            try:
+                chroma_results = await self._chroma.query_embeddings(
+                    "kb",
+                    query_embedding,
+                    n_results=limit,
+                    where={"user_id": str(user_id)},
+                )
+            except RuntimeError:
+                chroma_results = {}
+
+            chroma_ids: list[str] = (
+                chroma_results.get("ids", [[]])[0] if chroma_results.get("ids") else []
+            )
+            chroma_distances: list[float] = (
+                chroma_results.get("distances", [[]])[0] if chroma_results.get("distances") else []
+            )
+
+            async with self._db.session() as session:
+                repo = KnowledgeEntryRepository(session)
+                for cid, dist in zip(chroma_ids, chroma_distances, strict=True):
+                    entry_id = cid.replace("kb_", "")
+                    try:
+                        entry = await repo.get_by_id(uuid.UUID(entry_id))
+                    except Exception:
+                        continue
+                    if entry and entry.user_id == user_id:
+                        score = 1.0 - dist if dist <= 1.0 else 0.0
+                        results.append(
+                            KnowledgeSearchResult(
+                                item=self._to_list_item(entry),
+                                score=round(score, 4),
+                                match_type="semantic",
+                            )
                         )
-                    )
 
         if not results:
             async with self._db.session() as session:
@@ -219,6 +224,9 @@ class KnowledgeBaseService:
         user_id: uuid.UUID,
         entry: KnowledgeEntry,
     ) -> None:
+        if self._chroma._client is None:
+            logger.warning("chroma_unavailable_skipping_embed", entry_id=str(entry.id))
+            return
         text = f"{entry.title}\n\n{entry.summary or ''}\n\n{entry.content}"
         embedding = await self._embedding.embed_text(text[:2000])
         async with self._db.session() as session:

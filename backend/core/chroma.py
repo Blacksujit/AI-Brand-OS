@@ -17,21 +17,22 @@ class ChromaService:
         self._client: chromadb.AsyncClientAPI | None = None
         self._collections: dict[str, Collection] = {}
 
-    async def initialize(self) -> None:
-        if self._settings.env == "production":
+    async def initialize(self) -> bool:
+        try:
             self._client = await chromadb.AsyncHttpClient(
                 host=self._settings.chromadb_host,
                 port=self._settings.chromadb_port,
             )
-        else:
-            self._client = await chromadb.AsyncHttpClient(
-                host=self._settings.chromadb_host,
-                port=self._settings.chromadb_port,
+            await self._client.heartbeat()
+            self._collections["kb"] = await self._get_or_create_collection(
+                self._settings.chromadb_collection_kb,
             )
-        self._collections["kb"] = await self._get_or_create_collection(
-            self._settings.chromadb_collection_kb,
-        )
-        logger.info("chroma_initialized", collections=list(self._collections.keys()))
+            logger.info("chroma_initialized", collections=list(self._collections.keys()))
+            return True
+        except Exception as exc:
+            logger.warning("chroma_init_failed", error=str(exc))
+            self._client = None
+            return False
 
     async def close(self) -> None:
         if self._client:

@@ -17,7 +17,8 @@ class JsonSink:
 
     def __call__(self, message) -> None:  # type: ignore[no-untyped-def]
         record = message.record
-        timestamp = datetime.fromtimestamp(record["time"], tz=UTC)
+        raw = record["time"]
+        timestamp = raw.astimezone(UTC) if hasattr(raw, "astimezone") else datetime.fromtimestamp(raw, tz=UTC)
 
         entry: dict[str, Any] = {
             "timestamp": timestamp.isoformat(),

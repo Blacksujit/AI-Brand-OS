@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from core.logging import get_logger
+from models.content import GeneratedPost
 
 logger = get_logger(__name__)
 
@@ -50,17 +51,55 @@ class GenerationRecord:
 class HistoryService:
     """Tracks content generation history and provides query access.
 
-    In production this persists to the database via the GeneratedPost model.
-    For development it maintains an in-memory store.
+    Persists to the database via GeneratedPost table when db is available.
+    Falls back to in-memory store when db is None (tests).
     """
 
-    def __init__(self) -> None:
+    def __init__(self, db: object | None = None) -> None:
+        self._db = db
         self._records: dict[str, GenerationRecord] = {}
         self._pipeline_states: dict[str, dict] = {}
-        self._repo = None
 
-    def wire(self, content_repo: object | None = None) -> None:
-        self._repo = content_repo
+    async def _persist_post(self, record: GenerationRecord) -> None:
+        if not self._db:
+            return
+        try:
+            from database.db import Database
+            from repositories.content import GeneratedPostRepository
+
+            db: Database = self._db
+            async with db.session() as session:
+                repo = GeneratedPostRepository(session)
+                post = GeneratedPost(
+                    id=record.id,
+                    user_id=record.user_id,
+                    title=record.title,
+                    body=record.body,
+                    hook=record.hook or None,
+                    call_to_action=record.call_to_action or None,
+                    hashtags=record.hashtags or None,
+                    quality_score=record.quality_score,
+                    review_feedback=record.review_feedback,
+                    status=record.status,
+                    platform=record.platform,
+                )
+                await repo.create(post)
+        except Exception:
+            logger.warning("history_persist_failed", record_id=str(record.id))
+
+    async def _persist_pipeline_state(self, pipeline_id: str, state: dict) -> None:
+        if not self._db:
+            return
+        try:
+            from database.db import Database
+            from repositories.content import GeneratedPostRepository
+
+            db: Database = self._db
+            async with db.session() as session:
+                repo = GeneratedPostRepository(session)
+                await repo.upsert_pipeline_state(pipeline_id, state.get("user_id", ""), state)
+        except Exception:
+            logger.warning("pipeline_state_persist_failed", pipeline_id=pipeline_id)
 
     def store_pipeline_state(self, pipeline_id: str, state: dict) -> None:
         self._pipeline_states[pipeline_id] = state
@@ -68,7 +107,7 @@ class HistoryService:
     def get_pipeline_state(self, pipeline_id: str) -> dict | None:
         return self._pipeline_states.get(pipeline_id)
 
-    def record_generation(
+    async def record_generation(
         self,
         user_id: uuid.UUID,
         title: str,

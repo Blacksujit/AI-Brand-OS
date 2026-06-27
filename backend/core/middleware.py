@@ -6,9 +6,7 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
+from slowapi import Limiter
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from core.config import Settings
@@ -102,6 +100,16 @@ class MaxBodySizeMiddleware(BaseHTTPMiddleware):
                 status_code=413,
                 content={"detail": "Request body too large"},
             )
+
+        body = await request.body()
+        if len(body) > self.max_size:
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse(
+                status_code=413,
+                content={"detail": "Request body too large"},
+            )
+
         return await call_next(request)
 
 

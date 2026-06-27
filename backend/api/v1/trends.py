@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from api.deps import get_trend_service
+from api.deps import get_current_user_id, get_trend_service
 from schemas.trend import (
     TrendAnalysisCreate,
     TrendAnalysisResponse,
@@ -159,12 +159,12 @@ async def search_trends(
 @router.post("/analyze", response_model=TrendAnalysisResponse)
 async def generate_analysis(
     request: TrendAnalysisCreate,
-    user_id: str = Query(default="00000000-0000-0000-0000-000000000001"),
+    user_id: UUID = Depends(get_current_user_id),
     service: TrendService = Depends(get_trend_service),
 ) -> TrendAnalysisResponse:
     try:
         analysis = await service.generate_analysis(
-            user_id=UUID(user_id),
+            user_id=user_id,
             topic_ids=[str(tid) for tid in request.topic_ids],
             generated_for=request.generated_for,
         )
@@ -175,9 +175,9 @@ async def generate_analysis(
 
 @router.get("/analyses", response_model=list[TrendAnalysisResponse])
 async def list_user_analyses(
-    user_id: str = Query(default="00000000-0000-0000-0000-000000000001"),
+    user_id: UUID = Depends(get_current_user_id),
     limit: int = Query(default=20, ge=1, le=100),
     service: TrendService = Depends(get_trend_service),
 ) -> list[TrendAnalysisResponse]:
-    analyses = await service.get_user_analyses(user_id=UUID(user_id), limit=limit)
+    analyses = await service.get_user_analyses(user_id=user_id, limit=limit)
     return [TrendAnalysisResponse(**a.to_dict()) for a in analyses]

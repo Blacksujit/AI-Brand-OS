@@ -510,15 +510,15 @@ class TestTrendAPI:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_analyze_no_topics(self, client) -> None:
+    async def test_analyze_no_topics(self, client, auth_headers) -> None:
         response = await client.post(
             "/api/v1/trends/analyze",
-            params={"user_id": "00000000-0000-0000-0000-000000000001"},
             json={
                 "topic_ids": [
                     "00000000-0000-0000-0000-000000000002",
                 ],
             },
+            headers=auth_headers,
         )
         assert response.status_code == 500
 
@@ -556,13 +556,13 @@ class TestTrendAPI:
         assert response.json() == []
 
     @pytest.mark.asyncio
-    async def test_list_analyses_empty(self, client) -> None:
-        response = await client.get("/api/v1/trends/analyses")
+    async def test_list_analyses_empty(self, client, auth_headers) -> None:
+        response = await client.get("/api/v1/trends/analyses", headers=auth_headers)
         assert response.status_code == 200
         assert response.json() == []
 
     @pytest.mark.asyncio
-    async def test_ingest_cluster_score_analyze_flow(self, client) -> None:
+    async def test_ingest_cluster_score_analyze_flow(self, client, auth_headers) -> None:
         signals = [
             {
                 "source_type": "rss",
@@ -617,18 +617,18 @@ class TestTrendAPI:
 
         resp = await client.post(
             "/api/v1/trends/analyze",
-            params={"user_id": "00000000-0000-0000-0000-000000000001"},
             json={
                 "topic_ids": [topic_id],
                 "generated_for": "test-flow",
             },
+            headers=auth_headers,
         )
         assert resp.status_code == 200
         analysis = resp.json()
         assert analysis["id"] is not None
         assert len(analysis["insights"]) > 0
 
-        resp = await client.get("/api/v1/trends/analyses")
+        resp = await client.get("/api/v1/trends/analyses", headers=auth_headers)
         assert resp.status_code == 200
         analyses = resp.json()
         assert len(analyses) >= 1

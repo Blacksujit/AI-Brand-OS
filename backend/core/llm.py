@@ -56,7 +56,7 @@ class LLMClient:
         self._clients: dict[str, Any] = {}
 
     def _get_client(self, model: str) -> Any:
-        from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: PLC0415
+        from langchain_google_genai import ChatGoogleGenerativeAI
 
         if model not in self._clients:
             self._clients[model] = ChatGoogleGenerativeAI(

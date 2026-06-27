@@ -5,10 +5,8 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from api.deps import get_current_user_id, get_db_session
-from core.chroma import ChromaService
+from api.deps import get_current_user_id, get_db_session, get_knowledge_service
 from core.config import Settings, get_settings
-from core.embedding import EmbeddingService
 from core.logging import get_logger
 from database.db import Database
 from schemas.knowledge import (
@@ -30,19 +28,13 @@ router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 logger = get_logger(__name__)
 
 
-async def _get_kb_service(db: Database = Depends(get_db_session)) -> KnowledgeBaseService:
-    return KnowledgeBaseService(db, None, None)  # type: ignore[arg-type]
-
-
 async def _get_ingestion(
     db: Database = Depends(get_db_session),
+    kb: KnowledgeBaseService = Depends(get_knowledge_service),
     settings: Settings = Depends(get_settings),
 ) -> IngestionPipeline:
     from core.llm import LLMClient
 
-    chroma = ChromaService(settings)
-    embedding = EmbeddingService(settings)
-    kb = KnowledgeBaseService(db, chroma, embedding)
     llm = LLMClient(settings)
     return IngestionPipeline(db, kb, llm)
 
@@ -54,12 +46,8 @@ async def list_entries(
     tag: str | None = None,
     source_type: str | None = None,
     user_id: uuid.UUID = Depends(get_current_user_id),
-    db: Database = Depends(get_db_session),
-    settings: Settings = Depends(get_settings),
+    kb: KnowledgeBaseService = Depends(get_knowledge_service),
 ) -> KnowledgeListResponse:
-    chroma = ChromaService(settings)
-    embedding = EmbeddingService(settings)
-    kb = KnowledgeBaseService(db, chroma, embedding)
     return await kb.list_entries(
         user_id=user_id,
         page=page,
@@ -73,12 +61,8 @@ async def list_entries(
 async def add_entry(
     body: AddKnowledgeEntryRequest,
     user_id: uuid.UUID = Depends(get_current_user_id),
-    db: Database = Depends(get_db_session),
-    settings: Settings = Depends(get_settings),
+    kb: KnowledgeBaseService = Depends(get_knowledge_service),
 ) -> KnowledgeEntryResponse:
-    chroma = ChromaService(settings)
-    embedding = EmbeddingService(settings)
-    kb = KnowledgeBaseService(db, chroma, embedding)
     entry = await kb.add_entry(user_id, body)
     return _entry_to_response(entry)
 
@@ -87,12 +71,9 @@ async def add_entry(
 async def get_entry(
     entry_id: uuid.UUID,
     user_id: uuid.UUID = Depends(get_current_user_id),
+    kb: KnowledgeBaseService = Depends(get_knowledge_service),
     db: Database = Depends(get_db_session),
-    settings: Settings = Depends(get_settings),
 ) -> KnowledgeEntryResponse:
-    chroma = ChromaService(settings)
-    embedding = EmbeddingService(settings)
-    kb = KnowledgeBaseService(db, chroma, embedding)
     entry = await kb.get_entry(user_id, entry_id)
     if entry is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entry not found")
@@ -113,12 +94,8 @@ async def update_entry(
     entry_id: uuid.UUID,
     body: UpdateKnowledgeEntryRequest,
     user_id: uuid.UUID = Depends(get_current_user_id),
-    db: Database = Depends(get_db_session),
-    settings: Settings = Depends(get_settings),
+    kb: KnowledgeBaseService = Depends(get_knowledge_service),
 ) -> KnowledgeEntryResponse:
-    chroma = ChromaService(settings)
-    embedding = EmbeddingService(settings)
-    kb = KnowledgeBaseService(db, chroma, embedding)
     entry = await kb.update_entry(user_id, entry_id, body)
     if entry is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entry not found")
@@ -129,12 +106,8 @@ async def update_entry(
 async def delete_entry(
     entry_id: uuid.UUID,
     user_id: uuid.UUID = Depends(get_current_user_id),
-    db: Database = Depends(get_db_session),
-    settings: Settings = Depends(get_settings),
+    kb: KnowledgeBaseService = Depends(get_knowledge_service),
 ) -> None:
-    chroma = ChromaService(settings)
-    embedding = EmbeddingService(settings)
-    kb = KnowledgeBaseService(db, chroma, embedding)
     deleted = await kb.delete_entry(user_id, entry_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entry not found")
@@ -145,24 +118,16 @@ async def search_entries(
     q: str = Query(min_length=1),
     limit: int = Query(default=10, ge=1, le=50),
     user_id: uuid.UUID = Depends(get_current_user_id),
-    db: Database = Depends(get_db_session),
-    settings: Settings = Depends(get_settings),
+    kb: KnowledgeBaseService = Depends(get_knowledge_service),
 ) -> KnowledgeSearchResponse:
-    chroma = ChromaService(settings)
-    embedding = EmbeddingService(settings)
-    kb = KnowledgeBaseService(db, chroma, embedding)
     return await kb.search(user_id=user_id, query_text=q, limit=limit)
 
 
 @router.get("/tags", response_model=list[KnowledgeTagResponse])
 async def list_tags(
     user_id: uuid.UUID = Depends(get_current_user_id),
-    db: Database = Depends(get_db_session),
-    settings: Settings = Depends(get_settings),
+    kb: KnowledgeBaseService = Depends(get_knowledge_service),
 ) -> list[KnowledgeTagResponse]:
-    chroma = ChromaService(settings)
-    embedding = EmbeddingService(settings)
-    kb = KnowledgeBaseService(db, chroma, embedding)
     return await kb.get_tags(user_id)
 
 
@@ -199,12 +164,8 @@ async def ingest_url(
 async def get_context(
     limit: int = Query(default=20, ge=1, le=50),
     user_id: uuid.UUID = Depends(get_current_user_id),
-    db: Database = Depends(get_db_session),
-    settings: Settings = Depends(get_settings),
+    kb: KnowledgeBaseService = Depends(get_knowledge_service),
 ) -> KnowledgeContextResponse:
-    chroma = ChromaService(settings)
-    embedding = EmbeddingService(settings)
-    kb = KnowledgeBaseService(db, chroma, embedding)
     items = await kb.get_recent_context(user_id, limit)
     tags = await kb.get_tags(user_id)
     return KnowledgeContextResponse(

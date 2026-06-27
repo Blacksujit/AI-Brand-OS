@@ -48,3 +48,20 @@ async def fixture_client(db: Database) -> AsyncGenerator[AsyncClient, None]:
     transport = ASGITransport(app=app)  # type: ignore[arg-type]
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
+
+
+@pytest.fixture(name="user_token")
+def fixture_user_token() -> str:
+    import uuid
+
+    from core.config import get_settings
+    from core.security import SecurityService
+
+    settings = get_settings()
+    security = SecurityService(settings)
+    return security.create_access_token(uuid.uuid4())
+
+
+@pytest.fixture(name="auth_headers")
+def fixture_auth_headers(user_token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {user_token}"}

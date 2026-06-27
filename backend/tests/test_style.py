@@ -407,8 +407,8 @@ class TestStyleService:
 
 class TestStyleAPI:
     @pytest.mark.asyncio
-    async def test_get_profile(self, client) -> None:
-        response = await client.get("/api/v1/style/profile")
+    async def test_get_profile(self, client, auth_headers) -> None:
+        response = await client.get("/api/v1/style/profile", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert "id" in data
@@ -416,22 +416,24 @@ class TestStyleAPI:
         assert "style_params" in data
 
     @pytest.mark.asyncio
-    async def test_update_profile(self, client) -> None:
+    async def test_update_profile(self, client, auth_headers) -> None:
         response = await client.put(
             "/api/v1/style/profile",
             json={"learning_rate": 0.15},
+            headers=auth_headers,
         )
         assert response.status_code == 200
         data = response.json()
         assert data["learning_rate"] == 0.15
 
     @pytest.mark.asyncio
-    async def test_analyze_text(self, client) -> None:
+    async def test_analyze_text(self, client, auth_headers) -> None:
         response = await client.post(
             "/api/v1/style/analyze",
             json={
                 "text": "This is a comprehensive test text for style analysis that exceeds the minimum length requirement of fifty characters by a sufficient margin."
             },
+            headers=auth_headers,
         )
         assert response.status_code == 200
         data = response.json()
@@ -439,17 +441,18 @@ class TestStyleAPI:
         assert "overall_similarity" in data
 
     @pytest.mark.asyncio
-    async def test_import_content(self, client) -> None:
+    async def test_import_content(self, client, auth_headers) -> None:
         response = await client.post(
             "/api/v1/style/import",
             json={"posts": ["Post one.", "Post two."]},
+            headers=auth_headers,
         )
         assert response.status_code == 200
         data = response.json()
         assert data["signals_created"] == 2
 
     @pytest.mark.asyncio
-    async def test_rate_draft(self, client) -> None:
+    async def test_rate_draft(self, client, auth_headers) -> None:
         import uuid
 
         draft_id = str(uuid.uuid4())
@@ -467,17 +470,18 @@ class TestStyleAPI:
                     "tone": 4,
                 },
             },
+            headers=auth_headers,
         )
         assert response.status_code == 200
         data = response.json()
         assert data["total_ratings"] >= 1
 
     @pytest.mark.asyncio
-    async def test_get_insights(self, client) -> None:
-        response = await client.get("/api/v1/style/insights")
+    async def test_get_insights(self, client, auth_headers) -> None:
+        response = await client.get("/api/v1/style/insights", headers=auth_headers)
         assert response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_get_progress(self, client) -> None:
-        response = await client.get("/api/v1/style/progress")
+    async def test_get_progress(self, client, auth_headers) -> None:
+        response = await client.get("/api/v1/style/progress", headers=auth_headers)
         assert response.status_code == 200

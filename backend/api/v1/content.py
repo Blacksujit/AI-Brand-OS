@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from api.deps import get_current_user_id
+from api.deps import get_current_user_id, get_history_service, get_knowledge_service
 from core.config import get_settings
 from core.llm import LLMClient
 from core.logging import get_logger
@@ -24,17 +24,16 @@ from schemas.content import (
 from services.content_engine.service import ContentEngine
 from services.evaluation import EvaluationService
 from services.history import HistoryService
+from services.knowledge import KnowledgeBaseService
 from services.research import ResearchService
 
 router = APIRouter(prefix="/content", tags=["content"])
 logger = get_logger(__name__)
 
-_history_service = HistoryService()
-
 _content_graph = None
 
 
-def _get_content_graph():
+def _get_content_graph(kb_service: KnowledgeBaseService | None = None):
     global _content_graph
     if _content_graph is None:
         from application.graph.graph import build_content_graph
@@ -45,7 +44,7 @@ def _get_content_graph():
             llm=LLMClient(settings),
             prompt_service=PromptService(),
             research_service=ResearchService(),
-            kb_service=None,
+            kb_service=kb_service,
             langsmith_api_key=settings.langchain_api_key,
             langsmith_project=settings.langchain_project,
         )
@@ -73,10 +72,12 @@ def _record_to_response(record: Any) -> GeneratedPostResponse:
 async def generate_content(
     request: PipelineGenerateRequest,
     user_id: uuid.UUID = Depends(get_current_user_id),
+    history: HistoryService = Depends(get_history_service),
+    kb: KnowledgeBaseService = Depends(get_knowledge_service),
 ) -> dict[str, Any]:
     import time as time_module
 
-    graph = _get_content_graph()
+    graph = _get_content_graph(kb_service=kb)
     start = time_module.time()
 
     pipeline_id = str(request.pipeline_id or uuid.uuid4())
@@ -114,7 +115,7 @@ async def generate_content(
     topic = strategy_output.get("topic") or request.topic or "Untitled"
 
     if draft and draft.get("body"):
-        _history_service.record_generation(
+        await history.record_generation(
             user_id=user_id,
             title=topic,
             body=draft.get("body", ""),
@@ -127,7 +128,7 @@ async def generate_content(
             duration_ms=int((time_module.time() - start) * 1000),
         )
 
-    _history_service.store_pipeline_state(pipeline_id, result)
+    history.store_pipeline_state(pipeline_id, result)
 
     requires_approval = result.get("requires_human_approval", False)
     errors = result.get("errors", [])
@@ -151,8 +152,9 @@ async def generate_content(
 async def get_pipeline_status(
     pipeline_id: str,
     user_id: uuid.UUID = Depends(get_current_user_id),
+    history: HistoryService = Depends(get_history_service),
 ) -> dict[str, Any]:
-    state = _history_service.get_pipeline_state(pipeline_id)
+    state = history.get_pipeline_state(pipeline_id)
     if state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline not found")
     requires_approval = state.get("requires_human_approval", False)
@@ -175,8 +177,9 @@ async def get_pipeline_status(
 async def get_pipeline_output(
     pipeline_id: str,
     user_id: uuid.UUID = Depends(get_current_user_id),
+    history: HistoryService = Depends(get_history_service),
 ) -> dict[str, Any]:
-    state = _history_service.get_pipeline_state(pipeline_id)
+    state = history.get_pipeline_state(pipeline_id)
     if state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline not found")
     draft_output = state.get("draft_output") or {}
@@ -257,8 +260,9 @@ async def list_history(
     platform: str | None = Query(default=None, max_length=32),
     status: str | None = Query(default=None, max_length=16),
     user_id: uuid.UUID = Depends(get_current_user_id),
+    history: HistoryService = Depends(get_history_service),
 ) -> dict[str, Any]:
-    records = _history_service.get_history(
+    records = history.get_history(
         user_id=user_id,
         limit=page_size,
         offset=(page - 1) * page_size,
@@ -277,8 +281,9 @@ async def list_history(
 async def get_history_record(
     record_id: uuid.UUID,
     user_id: uuid.UUID = Depends(get_current_user_id),
+    history: HistoryService = Depends(get_history_service),
 ) -> GeneratedPostResponse:
-    record = _history_service.get_record(user_id, record_id)
+    record = history.get_record(user_id, record_id)
     if record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found")
     return _record_to_response(record)
@@ -289,8 +294,9 @@ async def update_record_status(
     record_id: uuid.UUID,
     status: str = Query(pattern="^(draft|published|archived)$"),
     user_id: uuid.UUID = Depends(get_current_user_id),
+    history: HistoryService = Depends(get_history_service),
 ) -> GeneratedPostResponse:
-    record = _history_service.update_status(
+    record = history.update_status(
         user_id=user_id,
         record_id=record_id,
         status=status,  # type: ignore[arg-type]
