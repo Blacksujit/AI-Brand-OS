@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncGenerator
 
 import pytest
-from sqlalchemy import select
+import pytest_asyncio
 
 from database import Database
 from models.knowledge import KnowledgeEntry, KnowledgeTag
@@ -19,16 +20,37 @@ async def user_id(db: Database) -> uuid.UUID:
     return uid
 
 
-@pytest.fixture
-async def entry_repo(db: Database) -> KnowledgeEntryRepository:
-    async with db.session() as session:
-        return KnowledgeEntryRepository(session)
+@pytest_asyncio.fixture
+async def entry_repo(db: Database) -> AsyncGenerator[KnowledgeEntryRepository, None]:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    session: AsyncSession = db.session_factory()
+    try:
+        yield KnowledgeEntryRepository(session)
+    finally:
+        await session.close()
 
 
-@pytest.fixture
-async def tag_repo(db: Database) -> KnowledgeTagRepository:
-    async with db.session() as session:
-        return KnowledgeTagRepository(session)
+@pytest_asyncio.fixture
+async def tag_repo(db: Database) -> AsyncGenerator[KnowledgeTagRepository, None]:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    session: AsyncSession = db.session_factory()
+    try:
+        yield KnowledgeTagRepository(session)
+    finally:
+        await session.close()
+
+
+@pytest_asyncio.fixture
+async def shared_repos(db: Database) -> AsyncGenerator[tuple[KnowledgeEntryRepository, KnowledgeTagRepository], None]:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    session: AsyncSession = db.session_factory()
+    try:
+        yield KnowledgeEntryRepository(session), KnowledgeTagRepository(session)
+    finally:
+        await session.close()
 
 
 class TestKnowledgeEntryRepository:
@@ -58,7 +80,8 @@ class TestKnowledgeEntryRepository:
         entries = await entry_repo.list_by_user(user_id, offset=1, limit=2)
         assert len(entries) == 2
 
-    async def test_list_by_user_tag_filter(self, entry_repo: KnowledgeEntryRepository, tag_repo: KnowledgeTagRepository, user_id: uuid.UUID) -> None:
+    async def test_list_by_user_tag_filter(self, shared_repos: tuple[KnowledgeEntryRepository, KnowledgeTagRepository], user_id: uuid.UUID) -> None:
+        entry_repo, tag_repo = shared_repos
         e1 = await entry_repo.create(KnowledgeEntry(user_id=user_id, source_type="web", source_id="u1", title="T1", content="C"))
         e2 = await entry_repo.create(KnowledgeEntry(user_id=user_id, source_type="web", source_id="u2", title="T2", content="C"))
         await tag_repo.set_tags(e1.id, ["ai"])
@@ -102,35 +125,40 @@ class TestKnowledgeEntryRepository:
 
 
 class TestKnowledgeTagRepository:
-    async def test_add_tag(self, entry_repo: KnowledgeEntryRepository, tag_repo: KnowledgeTagRepository, user_id: uuid.UUID) -> None:
+    async def test_add_tag(self, shared_repos: tuple[KnowledgeEntryRepository, KnowledgeTagRepository], user_id: uuid.UUID) -> None:
+        entry_repo, tag_repo = shared_repos
         entry = await entry_repo.create(KnowledgeEntry(user_id=user_id, source_type="web", source_id="u1", title="T", content="C"))
         tag = KnowledgeTag(entry_id=entry.id, name="test-tag")
         created = await tag_repo.add_tag(tag)
         assert created.id is not None
         assert created.name == "test-tag"
 
-    async def test_remove_tag(self, entry_repo: KnowledgeEntryRepository, tag_repo: KnowledgeTagRepository, user_id: uuid.UUID) -> None:
+    async def test_remove_tag(self, shared_repos: tuple[KnowledgeEntryRepository, KnowledgeTagRepository], user_id: uuid.UUID) -> None:
+        entry_repo, tag_repo = shared_repos
         entry = await entry_repo.create(KnowledgeEntry(user_id=user_id, source_type="web", source_id="u1", title="T", content="C"))
         tag = await tag_repo.add_tag(KnowledgeTag(entry_id=entry.id, name="remove-me"))
         await tag_repo.remove_tag(tag.id)
         tags = await tag_repo.get_tags_for_entry(entry.id)
         assert len(tags) == 0
 
-    async def test_get_tags_for_entry(self, entry_repo: KnowledgeEntryRepository, tag_repo: KnowledgeTagRepository, user_id: uuid.UUID) -> None:
+    async def test_get_tags_for_entry(self, shared_repos: tuple[KnowledgeEntryRepository, KnowledgeTagRepository], user_id: uuid.UUID) -> None:
+        entry_repo, tag_repo = shared_repos
         entry = await entry_repo.create(KnowledgeEntry(user_id=user_id, source_type="web", source_id="u1", title="T", content="C"))
         await tag_repo.add_tag(KnowledgeTag(entry_id=entry.id, name="a"))
         await tag_repo.add_tag(KnowledgeTag(entry_id=entry.id, name="b"))
         tags = await tag_repo.get_tags_for_entry(entry.id)
         assert len(tags) == 2
 
-    async def test_get_tags_by_name(self, entry_repo: KnowledgeEntryRepository, tag_repo: KnowledgeTagRepository, user_id: uuid.UUID) -> None:
+    async def test_get_tags_by_name(self, shared_repos: tuple[KnowledgeEntryRepository, KnowledgeTagRepository], user_id: uuid.UUID) -> None:
+        entry_repo, tag_repo = shared_repos
         entry = await entry_repo.create(KnowledgeEntry(user_id=user_id, source_type="web", source_id="u1", title="T", content="C"))
         await tag_repo.add_tag(KnowledgeTag(entry_id=entry.id, name="unique"))
         found = await tag_repo.get_tags_by_name(entry.id, "unique")
         assert found is not None
         assert found.name == "unique"
 
-    async def test_get_distinct_tags(self, entry_repo: KnowledgeEntryRepository, tag_repo: KnowledgeTagRepository, user_id: uuid.UUID) -> None:
+    async def test_get_distinct_tags(self, shared_repos: tuple[KnowledgeEntryRepository, KnowledgeTagRepository], user_id: uuid.UUID) -> None:
+        entry_repo, tag_repo = shared_repos
         e1 = await entry_repo.create(KnowledgeEntry(user_id=user_id, source_type="web", source_id="u1", title="T1", content="C"))
         e2 = await entry_repo.create(KnowledgeEntry(user_id=user_id, source_type="web", source_id="u2", title="T2", content="C"))
         await tag_repo.set_tags(e1.id, ["ai", "ml"])
@@ -140,10 +168,13 @@ class TestKnowledgeTagRepository:
         assert tag_map["ai"] == 2
         assert tag_map["ml"] == 1
 
-    async def test_set_tags_replaces(self, entry_repo: KnowledgeEntryRepository, tag_repo: KnowledgeTagRepository, user_id: uuid.UUID) -> None:
+    async def test_set_tags_replaces(self, shared_repos: tuple[KnowledgeEntryRepository, KnowledgeTagRepository], user_id: uuid.UUID) -> None:
+        entry_repo, tag_repo = shared_repos
         entry = await entry_repo.create(KnowledgeEntry(user_id=user_id, source_type="web", source_id="u1", title="T", content="C"))
         await tag_repo.set_tags(entry.id, ["old"])
         await tag_repo.set_tags(entry.id, ["new"])
         tags = await tag_repo.get_tags_for_entry(entry.id)
         assert len(tags) == 1
         assert tags[0].name == "new"
+
+

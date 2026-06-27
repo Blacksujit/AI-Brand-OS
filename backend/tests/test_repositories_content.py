@@ -96,14 +96,14 @@ class TestGeneratedPostRepository:
         assert await post_repo.get_by_id(post.id) is None
 
     async def test_upsert_pipeline_state_new(self, post_repo: GeneratedPostRepository, user_id: uuid.UUID) -> None:
-        post = await post_repo.upsert_pipeline_state("pipeline-1", user_id, {"title": "New"})
+        post = await post_repo.upsert_pipeline_state("pipeline-1", user_id, {"topic": "New"})
         assert post.title == "New"
 
     async def test_upsert_pipeline_state_existing(self, post_repo: GeneratedPostRepository, user_id: uuid.UUID) -> None:
-        first = await post_repo.upsert_pipeline_state("pipeline-1", user_id, {"title": "Old"})
-        second = await post_repo.upsert_pipeline_state("pipeline-1", user_id, {"title": "Updated"})
+        first = await post_repo.upsert_pipeline_state("pipeline-1", user_id, {"topic": "Old"})
+        second = await post_repo.upsert_pipeline_state("pipeline-1", user_id, {"topic": "Updated"})
         assert second.id == first.id
-        assert second.title == "Updated"
+        assert second.extra_metadata["pipeline_state"]["topic"] == "Updated"
 
 
 class TestAgentRunRepository:
