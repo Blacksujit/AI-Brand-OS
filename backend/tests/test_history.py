@@ -61,7 +61,7 @@ class TestHistoryService:
         await self.service.record_generation(
             user_id=self.other_user_id, title="Other Post", body="Other Body"
         )
-        history = self.service.get_history(user_id=self.user_id)
+        history = await self.service.get_history(user_id=self.user_id)
         assert len(history) == 2
         assert history[0].title == "Post 2"
 
@@ -79,7 +79,7 @@ class TestHistoryService:
             body="Body",
             platform="twitter",
         )
-        linkedin_only = self.service.get_history(user_id=self.user_id, platform="linkedin")
+        linkedin_only = await self.service.get_history(user_id=self.user_id, platform="linkedin")
         assert len(linkedin_only) == 1
         assert linkedin_only[0].platform == "linkedin"
 
@@ -89,27 +89,28 @@ class TestHistoryService:
             await self.service.record_generation(
                 user_id=self.user_id, title=f"Post {i}", body=f"Body {i}"
             )
-        first_page = self.service.get_history(user_id=self.user_id, limit=3, offset=0)
+        first_page = await self.service.get_history(user_id=self.user_id, limit=3, offset=0)
         assert len(first_page) == 3
-        second_page = self.service.get_history(user_id=self.user_id, limit=3, offset=3)
+        second_page = await self.service.get_history(user_id=self.user_id, limit=3, offset=3)
         assert len(second_page) == 3
         assert first_page[0].title != second_page[0].title
 
     @pytest.mark.asyncio
     async def test_get_record(self) -> None:
         created = await self.service.record_generation(user_id=self.user_id, title="Find Me", body="Body")
-        found = self.service.get_record(user_id=self.user_id, record_id=created.id)
+        found = await self.service.get_record(user_id=self.user_id, record_id=created.id)
         assert found is not None
         assert found.id == created.id
 
     @pytest.mark.asyncio
     async def test_get_record_wrong_user(self) -> None:
         created = await self.service.record_generation(user_id=self.user_id, title="Mine", body="Body")
-        found = self.service.get_record(user_id=self.other_user_id, record_id=created.id)
+        found = await self.service.get_record(user_id=self.other_user_id, record_id=created.id)
         assert found is None
 
-    def test_get_record_not_found(self) -> None:
-        found = self.service.get_record(user_id=self.user_id, record_id=uuid.uuid4())
+    @pytest.mark.asyncio
+    async def test_get_record_not_found(self) -> None:
+        found = await self.service.get_record(user_id=self.user_id, record_id=uuid.uuid4())
         assert found is None
 
     @pytest.mark.asyncio
@@ -117,7 +118,7 @@ class TestHistoryService:
         created = await self.service.record_generation(
             user_id=self.user_id, title="To Publish", body="Body"
         )
-        updated = self.service.update_status(
+        updated = await self.service.update_status(
             user_id=self.user_id,
             record_id=created.id,
             status="published",
@@ -125,8 +126,9 @@ class TestHistoryService:
         assert updated is not None
         assert updated.status == "published"
 
-    def test_update_status_nonexistent(self) -> None:
-        updated = self.service.update_status(
+    @pytest.mark.asyncio
+    async def test_update_status_nonexistent(self) -> None:
+        updated = await self.service.update_status(
             user_id=self.user_id,
             record_id=uuid.uuid4(),
             status="published",
@@ -136,7 +138,7 @@ class TestHistoryService:
     @pytest.mark.asyncio
     async def test_update_status_wrong_user(self) -> None:
         created = await self.service.record_generation(user_id=self.user_id, title="Mine", body="Body")
-        updated = self.service.update_status(
+        updated = await self.service.update_status(
             user_id=self.other_user_id,
             record_id=created.id,
             status="published",
@@ -150,5 +152,5 @@ class TestHistoryService:
         for i in range(5):
             await self.service.record_generation(user_id=u1, title=f"U1 Post {i}", body="Body")
             await self.service.record_generation(user_id=u2, title=f"U2 Post {i}", body="Body")
-        assert len(self.service.get_history(user_id=u1)) == 5
-        assert len(self.service.get_history(user_id=u2)) == 5
+        assert len(await self.service.get_history(user_id=u1)) == 5
+        assert len(await self.service.get_history(user_id=u2)) == 5

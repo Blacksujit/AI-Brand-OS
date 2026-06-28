@@ -18,25 +18,21 @@ class ContentCategory(StrEnum):
 
 
 class SignalBreakdown(BaseModel):
-    has_github_activity: bool = False
     has_kb_recent: bool = False
     has_trends: bool = False
-    dominant_signal: Literal["github", "knowledge", "trends", "mixed"] = "mixed"
+    dominant_signal: Literal["knowledge", "trends", "mixed"] = "mixed"
     signal_quality: float = 0.0
 
 
 class SignalWeights(BaseModel):
-    github_recency: float = 0.35
-    github_volume: float = 0.15
-    kb_freshness: float = 0.25
-    kb_diversity: float = 0.10
-    trend_relevance: float = 0.10
-    trend_freshness: float = 0.05
+    kb_freshness: float = 0.50
+    kb_diversity: float = 0.20
+    trend_relevance: float = 0.20
+    trend_freshness: float = 0.10
 
 
 class AggregatedContext(BaseModel):
     user_id: uuid.UUID
-    recent_github_topics: list[str] = []
     recent_kb_tags: list[str] = []
     trending_topics: list[str] = []
     expertise_areas: list[str] = []

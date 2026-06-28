@@ -11,37 +11,17 @@ from services.content_engine.stages.models import (
     CompositionResult,
     ContentIdea,
 )
+from services.prompt import PromptService
 
 logger = get_logger(__name__)
-
-COMPOSER_SYSTEM_PROMPT = """You are a professional content writer. Given a content idea and context, write a compelling post.
-
-Rules:
-- Write in a natural, human voice — never robotic or overly formal
-- Use short paragraphs (1-3 sentences) for social media readability
-- Include a strong hook in the first line
-- End with a call to action or thought-provoking question
-- Add relevant hashtags at the end (3-5)
-- Keep the tone consistent throughout
-- Never use AI clichés like "delve into," "let's dive in," "it's worth noting"
-- Write like a real person sharing their genuine experience and insight
-
-Respond with a JSON object:
-{
-  "title": "Post title",
-  "body": "Full post body",
-  "hook": "Opening hook sentence",
-  "call_to_action": "Closing CTA",
-  "hashtags": ["#tag1", "#tag2", "#tag3"],
-  "sections": ["section1", "section2"]
-}"""
 
 
 class DraftComposer:
     """Composes full draft content from an idea and context."""
 
-    def __init__(self, llm: LLMClient) -> None:
+    def __init__(self, llm: LLMClient, prompt_service: PromptService | None = None) -> None:
         self._llm = llm
+        self._prompt_service = prompt_service or PromptService()
 
     async def compose(
         self,
@@ -51,13 +31,33 @@ class DraftComposer:
         model: str = "gemini-2.0-flash",
     ) -> CompositionResult:
         p = params or CompositionParams()
-        user_prompt = self._build_user_prompt(idea, context, p)
         start = __import__("time").time()
+
+        anecdote_line = ""
+        if p.include_personal_anecdote:
+            anecdote_line = "Include a personal anecdote or real experience where relevant."
+
+        system_prompt, user_prompt = self._prompt_service.build_prompt(
+            "draft_composer",
+            user_vars={
+                "platform": p.platform,
+                "title": idea.title,
+                "description": idea.description,
+                "angle": idea.angle,
+                "category": idea.category.value,
+                "tone": p.tone,
+                "target_audience": p.target_audience,
+                "length": p.length,
+                "include_personal_anecdote": anecdote_line,
+                "aggregated_summary": (context.aggregated_summary[:500] if context.aggregated_summary else "N/A"),
+                "expertise_areas": ", ".join(context.expertise_areas) if context.expertise_areas else "N/A",
+            },
+        )
 
         request = CompletionRequest(
             model=model,
             messages=[ChatMessage(role="user", content=user_prompt)],
-            system_prompt=COMPOSER_SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             temperature=p.creativity_level,
             max_tokens=2048,
             response_format="json_object",
@@ -83,31 +83,6 @@ class DraftComposer:
             has_code_blocks="```" in data.get("body", ""),
             sections=data.get("sections", []),
         )
-
-    def _build_user_prompt(
-        self,
-        idea: ContentIdea,
-        context: AggregatedContext,
-        params: CompositionParams,
-    ) -> str:
-        lines = [f"Write a {params.platform} post based on this idea:\n"]
-        lines.append(f"Title: {idea.title}")
-        lines.append(f"Description: {idea.description}")
-        lines.append(f"Angle: {idea.angle}")
-        lines.append(f"Category: {idea.category.value}")
-        lines.append(f"Suggested tone: {params.tone}")
-        lines.append(f"Target audience: {params.target_audience}")
-        lines.append(f"Length: {params.length}")
-
-        if context.aggregated_summary:
-            lines.append(f"\nContext: {context.aggregated_summary[:500]}")
-        if context.expertise_areas:
-            lines.append(f"\nExpertise areas: {', '.join(context.expertise_areas)}")
-
-        if params.include_personal_anecdote:
-            lines.append("\nInclude a personal anecdote or real experience where relevant.")
-
-        return "\n".join(lines)
 
     def _parse_response(self, content: str) -> dict[str, Any]:
         raw = content.strip()

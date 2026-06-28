@@ -162,3 +162,74 @@ class TestLLMClient:
         assert result["model"] == "gemini-2.0-flash"
         assert result["estimated_tokens"] == 42
         assert result["estimated_cost_usd"] == 42 * 0.0000005
+
+    @pytest.mark.asyncio
+    async def test_complete_fallback_to_next_model(self, settings: MagicMock) -> None:
+        client = LLMClient(settings)
+        request = CompletionRequest(
+            model="gemini-2.5-pro",
+            messages=[ChatMessage(role="user", content="Hello")],
+        )
+        call_count = 0
+        expected_usage = TokenUsage(prompt_tokens=5, completion_tokens=10, total_tokens=15)
+
+        async def attempt_complete(model: str, req: CompletionRequest) -> CompletionResponse:
+            nonlocal call_count
+            call_count += 1
+            if model == "gemini-2.5-pro":
+                raise ConnectionError("API unavailable")
+            return CompletionResponse(
+                content=f"Response from {model}",
+                finish_reason="stop",
+                usage=expected_usage,
+                model=model,
+                latency_ms=50,
+            )
+
+        client._attempt_complete = attempt_complete
+        result = await client.complete(request)
+        assert result.model == "gemini-2.0-flash"
+        assert call_count == 4
+
+    @pytest.mark.asyncio
+    async def test_complete_all_models_fail_raises(self, settings: MagicMock) -> None:
+        client = LLMClient(settings)
+        request = CompletionRequest(
+            model="gemini-2.5-pro",
+            messages=[ChatMessage(role="user", content="Hello")],
+        )
+
+        async def always_fail(model: str, req: CompletionRequest) -> CompletionResponse:
+            raise RuntimeError(f"{model} failed")
+
+        client._attempt_complete = always_fail
+        with pytest.raises(RuntimeError, match="gemini-1.5-flash failed|No LLM models succeeded"):
+            await client.complete(request)
+
+    @pytest.mark.asyncio
+    async def test_complete_retries_then_falls_through(self, settings: MagicMock) -> None:
+        client = LLMClient(settings)
+        request = CompletionRequest(
+            model="gemini-2.0-flash",
+            messages=[ChatMessage(role="user", content="Hello")],
+        )
+        attempt_count = 0
+        expected_usage = TokenUsage(prompt_tokens=1, completion_tokens=2, total_tokens=3)
+
+        async def succeed_on_third_retry(model: str, req: CompletionRequest) -> CompletionResponse:
+            nonlocal attempt_count
+            attempt_count += 1
+            if attempt_count < 3:
+                raise TimeoutError(f"Attempt {attempt_count} timed out")
+            return CompletionResponse(
+                content="Got it",
+                finish_reason="stop",
+                usage=expected_usage,
+                model=model,
+                latency_ms=30,
+            )
+
+        client._attempt_complete = succeed_on_third_retry
+        result = await client.complete(request)
+        assert result.model == "gemini-2.0-flash"
+        assert attempt_count == 3

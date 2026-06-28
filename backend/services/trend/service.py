@@ -20,8 +20,11 @@ from sklearn.cluster import DBSCAN
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from core.logging import get_logger
 from database.db import Database
 from models.trend import TrendAnalysis, TrendSignal, TrendTopic
+
+logger = get_logger(__name__)
 from repositories.trend import (
     TrendAnalysisRepository,
     TrendSignalRepository,
@@ -243,9 +246,42 @@ class TrendService:
 
     async def fetch_and_ingest(self, sources: list[dict]) -> dict:
         """Fetch content from URLs and ingest as trend signals."""
-        # This would use the IngestionPipeline to fetch URLs
-        # For now, return placeholder
-        return {"created": 0, "updated": 0, "skipped": 0}
+        import httpx
+
+        from services.ingestion import _html_to_text
+
+        created = 0
+        updated = 0
+        skipped = 0
+
+        async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
+            for source in sources:
+                url = source.get("url", "")
+                if not url:
+                    skipped += 1
+                    continue
+                try:
+                    response = await client.get(url, headers={"User-Agent": "BrandOS/2.0"})
+                    response.raise_for_status()
+                    text = _html_to_text(response.text)[:5000]
+                    signal_data = {
+                        "source_type": source.get("source_type", "web"),
+                        "source_id": source.get("source_id", url),
+                        "source_url": url,
+                        "title": source.get("title", url.rstrip("/").split("/")[-1].replace("-", " ").title()),
+                        "summary": text[:500] if text else "",
+                        "raw_content": text,
+                        "keywords": source.get("keywords", []),
+                        "relevance_score": float(source.get("relevance", 0.5)),
+                    }
+                    result = await self.ingest_signals([signal_data])
+                    created += result.get("created", 0)
+                    updated += result.get("updated", 0)
+                except Exception as exc:
+                    logger.warning("fetch_and_ingest_failed", url=url, error=str(exc))
+                    skipped += 1
+
+        return {"created": created, "updated": updated, "skipped": skipped}
 
     async def cluster_trends(
         self,
@@ -378,7 +414,7 @@ class TrendService:
 
     async def generate_analysis(
         self,
-        user_id: str | uuid.UUID,
+        user_id: str | UUID,
         topic_ids: list[str],
         generated_for: str | None = None,
     ) -> TrendAnalysis:
@@ -474,7 +510,7 @@ class TrendService:
             return await topic_repo.get_by_id(topic_id_uuid)
 
     async def get_user_analyses(
-        self, user_id: str | uuid.UUID, limit: int = 20
+        self, user_id: str | UUID, limit: int = 20
     ) -> list[TrendAnalysis]:
         async with self._db.session() as session:
             analysis_repo = TrendAnalysisRepository(session)

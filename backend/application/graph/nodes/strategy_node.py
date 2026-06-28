@@ -35,7 +35,7 @@ async def _llm_strategy(
     topic: str, state: ContentState, llm: LLMClient, prompt_service: PromptService
 ) -> dict[str, Any]:
     try:
-        prompt = prompt_service.build_prompt(
+        system_prompt, user_prompt = prompt_service.build_prompt(
             "strategy_agent",
             system_vars={"topic": topic},
             user_vars={
@@ -46,8 +46,8 @@ async def _llm_strategy(
         )
         request = CompletionRequest(
             model="gemini-2.0-flash",
-            messages=[ChatMessage(role="user", content=prompt.user_prompt)],
-            system_prompt=prompt.system_prompt,
+            messages=[ChatMessage(role="user", content=user_prompt)],
+            system_prompt=system_prompt,
             temperature=0.7,
             max_tokens=1024,
             response_format="json_object",

@@ -6,11 +6,10 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from api.deps import get_current_user_id, get_history_service, get_knowledge_service, get_trend_service, get_security_service
+from api.deps import get_current_user_id, get_history_service, get_knowledge_service, get_trend_service
 from core.config import get_settings
 from core.llm import LLMClient
 from core.logging import get_logger
-from core.security import SecurityService
 from schemas.content import (
     EvaluateContentRequest,
     EvaluateContentResponse,
@@ -26,7 +25,6 @@ from services.content_engine.service import ContentEngine
 from services.evaluation import EvaluationService
 from services.history import HistoryService
 from services.knowledge import KnowledgeBaseService
-from services.research import ResearchService
 
 router = APIRouter(prefix="/content", tags=["content"])
 logger = get_logger(__name__)
@@ -164,11 +162,11 @@ async def get_pipeline_status(
     user_id: uuid.UUID = Depends(get_current_user_id),
     history: HistoryService = Depends(get_history_service),
 ) -> dict[str, Any]:
-    state = history.get_pipeline_state(pipeline_id)
+    state = await history.get_pipeline_state(pipeline_id)
     if state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline not found")
-    requires_approval = state.get("requires_human_approval", False)
     errors = state.get("errors", [])
+    requires_approval = state.get("requires_human_approval", False)
     return {
         "pipeline_id": pipeline_id,
         "is_complete": state.get("current_step") in ("analytics", "review") or not requires_approval,
@@ -189,7 +187,7 @@ async def get_pipeline_output(
     user_id: uuid.UUID = Depends(get_current_user_id),
     history: HistoryService = Depends(get_history_service),
 ) -> dict[str, Any]:
-    state = history.get_pipeline_state(pipeline_id)
+    state = await history.get_pipeline_state(pipeline_id)
     if state is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline not found")
     draft_output = state.get("draft_output") or {}
@@ -279,7 +277,7 @@ async def list_history(
     user_id: uuid.UUID = Depends(get_current_user_id),
     history: HistoryService = Depends(get_history_service),
 ) -> dict[str, Any]:
-    records = history.get_history(
+    records = await history.get_history(
         user_id=user_id,
         limit=page_size,
         offset=(page - 1) * page_size,
@@ -300,7 +298,7 @@ async def get_history_record(
     user_id: uuid.UUID = Depends(get_current_user_id),
     history: HistoryService = Depends(get_history_service),
 ) -> GeneratedPostResponse:
-    record = history.get_record(user_id, record_id)
+    record = await history.get_record(user_id, record_id)
     if record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found")
     return _record_to_response(record)
@@ -313,7 +311,7 @@ async def update_record_status(
     user_id: uuid.UUID = Depends(get_current_user_id),
     history: HistoryService = Depends(get_history_service),
 ) -> GeneratedPostResponse:
-    record = history.update_status(
+    record = await history.update_status(
         user_id=user_id,
         record_id=record_id,
         status=status,  # type: ignore[arg-type]

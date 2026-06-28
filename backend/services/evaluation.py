@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from core.logging import get_logger
@@ -30,8 +31,8 @@ class EvaluationMetrics:
 class EvaluationService:
     """Evaluates content quality across multiple dimensions.
 
-    Provides both LLM-based evaluation (via the QualityGate)
-    and deterministic heuristic scoring.
+    Uses an LLM-based QualityGate when available, with
+    deterministic heuristic scoring as the fallback.
     """
 
     def __init__(self) -> None:
@@ -42,6 +43,27 @@ class EvaluationService:
 
     async def evaluate_text(self, text: str, title: str = "") -> EvaluationMetrics:
         scores = self._heuristic_scores(text)
+
+        if self._quality_gate is not None:
+            try:
+                from services.content_engine.stages.models import CompositionResult
+
+                result = CompositionResult(
+                    draft_id=uuid.uuid4(),
+                    title=title or "Untitled",
+                    body=text,
+                )
+                verdict = await self._quality_gate.evaluate(result)
+                llm_overall = verdict.overall_score
+                combined = (scores["overall"] + llm_overall) / 2.0
+                feedback = list(scores.get("feedback", []))
+                if verdict.recommendations:
+                    feedback.extend(verdict.recommendations)
+                scores["overall"] = round(combined, 2)
+                scores["feedback"] = feedback
+            except Exception:
+                logger.warning("evaluation_quality_gate_failed")
+                pass
 
         return EvaluationMetrics(
             overall_score=scores["overall"],

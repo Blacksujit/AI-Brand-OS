@@ -61,13 +61,11 @@ async def _llm_draft(
         }
 
         if prompt_service:
-            prompt = prompt_service.build_prompt(
+            system_prompt, user_prompt_content = prompt_service.build_prompt(
                 "writing_agent",
                 system_vars={"topic": topic, "platform": state.get("platform", "linkedin")},
                 user_vars=user_vars,
             )
-            system_prompt = prompt.system_prompt
-            user_prompt_content = prompt.user_prompt
         else:
             system_prompt = f"You are a professional content writer. Write a post about {topic}."
             user_prompt_content = (

@@ -53,13 +53,11 @@ async def _llm_review(
 ) -> dict:
     try:
         if prompt_service:
-            prompt = prompt_service.build_prompt(
+            system_prompt, user_prompt_content = prompt_service.build_prompt(
                 "review_agent",
                 system_vars={"topic": topic},
                 user_vars={"topic": topic, "post_body": body[:3000]},
             )
-            system_prompt = prompt.system_prompt
-            user_prompt_content = prompt.user_prompt
         else:
             system_prompt = "You are a content quality reviewer. Review the post and return JSON."
             user_prompt_content = f"Topic: {topic}\n\nPost:\n{body[:3000]}"

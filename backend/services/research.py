@@ -1,59 +1,43 @@
 from __future__ import annotations
 
 import uuid
+from collections import Counter
 from datetime import UTC, datetime
-from typing import Any
+
+from pydantic import BaseModel, Field
 
 from core.logging import get_logger
+from services.trend import TrendService
 
 logger = get_logger(__name__)
 
 
-class ResearchFinding:
-    """A single research finding from an external source."""
-
-    def __init__(
-        self,
-        title: str,
-        description: str,
-        source: str,
-        url: str | None = None,
-        relevance_score: float = 0.5,
-        freshness_score: float = 0.5,
-        matched_expertise: list[str] | None = None,
-    ) -> None:
-        self.title = title
-        self.description = description
-        self.source = source
-        self.url = url
-        self.relevance_score = relevance_score
-        self.freshness_score = freshness_score
-        self.matched_expertise = matched_expertise or []
-        self.discovered_at = datetime.now(UTC)
+class ResearchFinding(BaseModel):
+    title: str
+    description: str
+    source: str
+    url: str | None = None
+    relevance_score: float = 0.5
+    freshness_score: float = 0.5
+    matched_expertise: list[str] = Field(default_factory=list)
+    discovered_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
-class ResearchSummary:
-    """Summary of a research session."""
+class ResearchSummary(BaseModel):
+    findings: list[ResearchFinding] = Field(default_factory=list)
+    sources_queried: int = 0
+    duration_ms: int = 0
 
-    def __init__(
-        self,
-        findings: list[ResearchFinding],
-        sources_queried: int = 0,
-        duration_ms: int = 0,
-    ) -> None:
-        self.findings = findings
-        self.sources_queried = sources_queried
-        self.duration_ms = duration_ms
-        self.total_findings = len(findings)
-        self.dominant_theme = self._extract_theme(findings)
+    @property
+    def total_findings(self) -> int:
+        return len(self.findings)
 
-    def _extract_theme(self, findings: list[ResearchFinding]) -> str | None:
-        if not findings:
+    @property
+    def dominant_theme(self) -> str | None:
+        if not self.findings:
             return None
-        from collections import Counter
-
         keywords: list[str] = []
-        for f in findings:
+        for f in self.findings:
             keywords.extend(f.title.lower().split()[:5])
             keywords.extend(f.description.lower().split()[:5])
         if keywords:
@@ -63,16 +47,12 @@ class ResearchSummary:
 
 
 class ResearchService:
-    """Discovers trending topics and relevant content for content generation.
-
-    Wraps the TrendService for cached trend data with additional
-    cross-source deduplication and relevance scoring.
-    """
+    """Discovers trending topics and relevant content for content generation."""
 
     def __init__(self) -> None:
-        self._trend_service = None
+        self._trend_service: TrendService | None = None
 
-    def wire(self, trend_service: object | None = None) -> None:
+    def wire(self, trend_service: TrendService | None = None) -> None:
         self._trend_service = trend_service
 
     async def research(
@@ -90,16 +70,16 @@ class ResearchService:
 
         if self._trend_service:
             try:
-                trends = await self._trend_service.get_global_trending()
+                trends = await self._trend_service.get_trending_topics(limit=max_findings)
                 for t in (trends or [])[:max_findings]:
                     findings.append(
                         ResearchFinding(
-                            title=t.title,
-                            description=t.description,
-                            source=t.source,
-                            url=t.url,
-                            relevance_score=getattr(t, "relevance_score", 0.5),
-                            freshness_score=getattr(t, "freshness_score", 0.5),
+                            title=t.name,
+                            description=t.description or "",
+                            source="trends",
+                            url="",
+                            relevance_score=t.velocity,
+                            freshness_score=0.5,
                         )
                     )
             except Exception as exc:
@@ -132,17 +112,6 @@ class ResearchService:
         self,
         user_id: uuid.UUID,
         expertise_areas: list[str] | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> list[dict]:
         summary = await self.research(user_id, expertise_areas)
-        return [
-            {
-                "title": f.title,
-                "description": f.description,
-                "source": f.source,
-                "url": f.url,
-                "relevance_score": f.relevance_score,
-                "freshness_score": f.freshness_score,
-                "matched_expertise": f.matched_expertise,
-            }
-            for f in summary.findings
-        ]
+        return [f.model_dump() for f in summary.findings]

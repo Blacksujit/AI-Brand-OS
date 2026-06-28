@@ -42,7 +42,7 @@ async def _llm_hooks(
 ) -> list[dict[str, str]]:
     try:
         kp = strategy.get("key_points", [])
-        prompt = prompt_service.build_prompt(
+        system_prompt, user_prompt = prompt_service.build_prompt(
             "hook_generator",
             system_vars={"topic": topic},
             user_vars={
@@ -54,8 +54,8 @@ async def _llm_hooks(
         )
         request = CompletionRequest(
             model="gemini-2.0-flash",
-            messages=[ChatMessage(role="user", content=prompt.user_prompt)],
-            system_prompt=prompt.system_prompt,
+            messages=[ChatMessage(role="user", content=user_prompt)],
+            system_prompt=system_prompt,
             temperature=0.8,
             max_tokens=1024,
             response_format="json_object",

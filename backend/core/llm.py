@@ -50,6 +50,16 @@ class CompletionResponse:
     latency_ms: int
 
 
+_FALLBACK_CHAIN: dict[str, list[str]] = {
+    "gemini-2.5-pro": ["gemini-2.0-flash", "gemini-1.5-flash"],
+    "gemini-2.0-flash": ["gemini-1.5-flash"],
+    "gemini-1.5-flash": [],
+    "gemini-1.5-pro": ["gemini-2.0-flash", "gemini-1.5-flash"],
+}
+_MAX_RETRIES = 3
+_BASE_DELAY_MS = 1000
+
+
 class LLMClient:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
@@ -80,10 +90,12 @@ class LLMClient:
                 messages.append(AIMessage(content=msg.content))
         return messages
 
-    async def complete(self, request: CompletionRequest) -> CompletionResponse:
+    async def _attempt_complete(
+        self, model: str, request: CompletionRequest
+    ) -> CompletionResponse:
         import time
 
-        client = self._get_client(request.model)
+        client = self._get_client(model)
         langchain_messages = self._to_langchain_messages(request)
 
         start = time.monotonic()
@@ -110,21 +122,40 @@ class LLMClient:
             else 0,
         )
 
-        logger.info(
-            "llm_complete",
-            model=request.model,
-            latency_ms=elapsed_ms,
-            input_tokens=usage.prompt_tokens,
-            output_tokens=usage.completion_tokens,
-        )
-
         return CompletionResponse(
             content=content,
             finish_reason=finish_reason,
             usage=usage,
-            model=request.model,
+            model=model,
             latency_ms=elapsed_ms,
         )
+
+    async def complete(self, request: CompletionRequest) -> CompletionResponse:
+        import asyncio
+        import random
+
+        models_to_try = [request.model, *_FALLBACK_CHAIN.get(request.model, [])]
+        last_exception: Exception | None = None
+
+        for model in models_to_try:
+            for attempt in range(_MAX_RETRIES):
+                try:
+                    return await self._attempt_complete(model, request)
+                except Exception as exc:
+                    last_exception = exc
+                    logger.warning(
+                        "llm_retry",
+                        model=model,
+                        attempt=attempt + 1,
+                        max_retries=_MAX_RETRIES,
+                        error=str(exc),
+                    )
+                    if attempt + 1 < _MAX_RETRIES:
+                        delay = _BASE_DELAY_MS * (2**attempt) + random.uniform(0, 500)
+                        await asyncio.sleep(delay / 1000.0)
+            logger.warning("llm_fallback", model=model, next_in_chain=models_to_try)
+
+        raise last_exception or RuntimeError("No LLM models succeeded")
 
     async def complete_stream(
         self, request: CompletionRequest

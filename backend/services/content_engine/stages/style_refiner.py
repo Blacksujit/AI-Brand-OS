@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from core.logging import get_logger
 from services.content_engine.stages.models import (
     CompositionResult,
@@ -9,8 +11,7 @@ from services.content_engine.stages.models import (
 
 logger = get_logger(__name__)
 
-# Common AI clichés to replace
-AI_CLICHES = {
+AI_CLICHES: dict[str, str] = {
     "delve into": "explore",
     "let's dive in": "let's get started",
     "it's worth noting": "",
@@ -48,30 +49,32 @@ class StyleRefiner:
         changes: list[StyleChange] = []
 
         for cliche, replacement in AI_CLICHES.items():
-            if cliche in refined.lower():
-                count = refined.lower().count(cliche)
-                if replacement:
-                    refined = refined.lower().replace(cliche, replacement)
-                    for _ in range(count):
-                        changes.append(
-                            StyleChange(
-                                change_type="vocabulary_replacement",
-                                original=cliche,
-                                refined=replacement,
-                                reason=f"Replaced AI cliché '{cliche}' with more natural wording",
-                            )
+            escaped = re.escape(cliche)
+            count = len(re.findall(escaped, refined, re.IGNORECASE))
+            if count == 0:
+                continue
+            if replacement:
+                refined = re.sub(escaped, replacement, refined, flags=re.IGNORECASE)
+                for _ in range(count):
+                    changes.append(
+                        StyleChange(
+                            change_type="vocabulary_replacement",
+                            original=cliche,
+                            refined=replacement,
+                            reason=f"Replaced AI cliché '{cliche}' with more natural wording",
                         )
-                else:
-                    refined = refined.lower().replace(cliche, "")
-                    for _ in range(count):
-                        changes.append(
-                            StyleChange(
-                                change_type="vocabulary_replacement",
-                                original=cliche,
-                                refined="(removed)",
-                                reason=f"Removed filler phrase '{cliche}'",
-                            )
+                    )
+            else:
+                refined = re.sub(escaped, "", refined, flags=re.IGNORECASE)
+                for _ in range(count):
+                    changes.append(
+                        StyleChange(
+                            change_type="vocabulary_replacement",
+                            original=cliche,
+                            refined="(removed)",
+                            reason=f"Removed filler phrase '{cliche}'",
                         )
+                    )
 
         if result.hook and not refined.startswith(result.hook):
             refined = f"{result.hook}\n\n{refined}"

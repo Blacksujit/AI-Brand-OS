@@ -105,8 +105,30 @@ class HistoryService:
         self._pipeline_states[pipeline_id] = state
         await self._persist_pipeline_state(pipeline_id, state)
 
-    def get_pipeline_state(self, pipeline_id: str) -> dict | None:
-        return self._pipeline_states.get(pipeline_id)
+    async def get_pipeline_state(self, pipeline_id: str) -> dict | None:
+        cached = self._pipeline_states.get(pipeline_id)
+        if cached is not None:
+            return cached
+        if self._db is not None:
+            try:
+                from database.db import Database
+                from repositories.content import GeneratedPostRepository
+
+                db: Database = self._db
+                async with db.session() as session:
+                    repo = GeneratedPostRepository(session)
+                    posts = await repo.list_by_user(
+                        uuid.UUID(int=0), limit=1
+                    )
+                    for post in posts:
+                        if post.extra_metadata:
+                            ps = post.extra_metadata.get("pipeline_state")
+                            if ps:
+                                self._pipeline_states[pipeline_id] = ps
+                                return ps
+            except Exception:
+                logger.warning("pipeline_state_db_read_failed", pipeline_id=pipeline_id)
+        return None
 
     async def record_generation(
         self,
@@ -147,7 +169,7 @@ class HistoryService:
         await self._persist_post(record)
         return record
 
-    def get_history(
+    async def get_history(
         self,
         user_id: uuid.UUID,
         limit: int = 20,
@@ -155,6 +177,46 @@ class HistoryService:
         platform: str | None = None,
         status: str | None = None,
     ) -> list[GenerationRecord]:
+        if self._db is not None:
+            try:
+                from database.db import Database
+                from models.content import GeneratedPost as DBPost
+                from repositories.content import GeneratedPostRepository
+
+                db: Database = self._db
+                async with db.session() as session:
+                    repo = GeneratedPostRepository(session)
+                    db_posts = await repo.list_by_user(
+                        user_id, offset=offset, limit=limit, platform=platform, status=status
+                    )
+                    db_records: dict[str, GenerationRecord] = {}
+                    for p in db_posts:
+                        rec = GenerationRecord(
+                            user_id=p.user_id,
+                            title=p.title,
+                            body=p.body,
+                            platform=p.platform or "linkedin",
+                            status=p.status or "draft",
+                            quality_score=p.quality_score,
+                            review_feedback=p.review_feedback,
+                            hook=p.hook or "",
+                            call_to_action=p.call_to_action or "",
+                            hashtags=p.hashtags or [],
+                            record_id=p.id,
+                        )
+                        rec.created_at = p.created_at if p.created_at else rec.created_at
+                        rec.updated_at = p.updated_at if p.updated_at else rec.updated_at
+                        db_records[str(p.id)] = rec
+
+                    for rid, rec in self._records.items():
+                        if rec.user_id == user_id:
+                            db_records[rid] = rec
+
+                    result = sorted(db_records.values(), key=lambda r: r.created_at, reverse=True)
+                    return result[offset : offset + limit]
+            except Exception:
+                logger.warning("history_db_read_failed")
+
         records = list(self._records.values())
         records = [r for r in records if r.user_id == user_id]
         if platform:
@@ -164,20 +226,64 @@ class HistoryService:
         records.sort(key=lambda r: r.created_at, reverse=True)
         return records[offset : offset + limit]
 
-    def get_record(self, user_id: uuid.UUID, record_id: uuid.UUID) -> GenerationRecord | None:
-        record = self._records.get(str(record_id))
-        if record and record.user_id == user_id:
-            return record
+    async def get_record(self, user_id: uuid.UUID, record_id: uuid.UUID) -> GenerationRecord | None:
+        cached = self._records.get(str(record_id))
+        if cached and cached.user_id == user_id:
+            return cached
+        if self._db is not None:
+            try:
+                from database.db import Database
+                from repositories.content import GeneratedPostRepository
+
+                db: Database = self._db
+                async with db.session() as session:
+                    repo = GeneratedPostRepository(session)
+                    post = await repo.get_by_id(record_id)
+                    if post and post.user_id == user_id:
+                        rec = GenerationRecord(
+                            user_id=post.user_id,
+                            title=post.title,
+                            body=post.body,
+                            platform=post.platform or "linkedin",
+                            status=post.status or "draft",
+                            quality_score=post.quality_score,
+                            review_feedback=post.review_feedback,
+                            hook=post.hook or "",
+                            call_to_action=post.call_to_action or "",
+                            hashtags=post.hashtags or [],
+                            record_id=post.id,
+                        )
+                        if post.created_at:
+                            rec.created_at = post.created_at
+                        if post.updated_at:
+                            rec.updated_at = post.updated_at
+                        self._records[str(record_id)] = rec
+                        return rec
+            except Exception:
+                logger.warning("history_db_record_read_failed", record_id=str(record_id))
         return None
 
-    def update_status(
+    async def update_status(
         self,
         user_id: uuid.UUID,
         record_id: uuid.UUID,
         status: Literal["draft", "published", "archived"],
     ) -> GenerationRecord | None:
-        record = self.get_record(user_id, record_id)
+        record = await self.get_record(user_id, record_id)
         if record:
             record.status = status
             record.updated_at = datetime.now(UTC)
+            self._records[str(record_id)] = record
+            if self._db is not None:
+                try:
+                    from database.db import Database
+                    from repositories.content import GeneratedPostRepository
+
+                    db: Database = self._db
+                    async with db.session() as session:
+                        repo = GeneratedPostRepository(session)
+                        await repo.update_status(record_id, status)
+                        await session.commit()
+                except Exception:
+                    logger.warning("history_status_update_failed", record_id=str(record_id))
         return record
