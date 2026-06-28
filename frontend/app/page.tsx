@@ -1,24 +1,25 @@
-import Link from "next/link";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/lib/stores/auth-store";
+import { Loader2 } from "lucide-react";
 
 export default function Home() {
+  const router = useRouter();
+  const { accessToken } = useAuthStore();
+
+  useEffect(() => {
+    if (accessToken) {
+      router.push("/app");
+    } else {
+      router.push("/login");
+    }
+  }, [accessToken, router]);
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between text-sm">
-        <h1 className="text-4xl font-bold tracking-tight mb-4">
-          BrandOS
-        </h1>
-        <p className="text-lg text-muted-foreground mb-8">
-          AI Content Engine
-        </p>
-        <div className="flex gap-4">
-          <Link
-            href="/content"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Launch App
-          </Link>
-        </div>
-      </div>
+    <main className="flex min-h-screen items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </main>
   );
 }

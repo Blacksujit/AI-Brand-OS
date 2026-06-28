@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type EvaluateRequest,
   type HistoryResponse,
-  type Idea,
   type PipelineRequest,
   type PipelineStatus,
   generateContent,
@@ -12,6 +11,7 @@ import {
   getHistoryRecord,
   updateRecordStatus,
 } from "./content";
+import { getTrendingTopics, type TrendTopicListResponse } from "./trends";
 
 // ─── Pipeline ───────────────────────────────────────────────────────────────
 
@@ -77,6 +77,15 @@ export function useUpdateRecordStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["content-history"] });
     },
+  });
+}
+
+// ─── Trends ──────────────────────────────────────────────────────────────────
+
+export function useTrendingTopics(params?: { limit?: number }) {
+  return useQuery<TrendTopicListResponse>({
+    queryKey: ["trending-topics", params],
+    queryFn: () => getTrendingTopics(params ?? {}),
   });
 }
 

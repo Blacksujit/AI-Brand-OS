@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "./client";
+import { apiGet } from "./client";
 
 export interface TrendTopic {
   id: string;

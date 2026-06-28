@@ -1,7 +1,9 @@
 "use client";
 
-import { PipelineForm } from "@/components/content/pipeline-form";
-import { IdeaList } from "@/components/content/idea-list";
+import { PipelineForm } from "@/features/content/components/PipelineForm";
+import { IdeaList } from "@/features/content/components/IdeaList";
+import { EvaluateForm } from "@/features/content/components/EvaluateForm";
+import { ContentTabs } from "@/features/content/components/ContentTabs";
 
 export default function ContentPage() {
   return (
@@ -12,8 +14,13 @@ export default function ContentPage() {
           Generate and manage AI-powered content for your brand.
         </p>
       </div>
-      <PipelineForm />
-      <IdeaList />
+      <ContentTabs
+        children={{
+          generate: <PipelineForm />,
+          ideas: <IdeaList />,
+          evaluate: <EvaluateForm />,
+        }}
+      />
     </div>
   );
 }
