@@ -9,8 +9,8 @@ from application.graph.state import ContentState
 def make_topic_selection_node():
     async def topic_selection_node(state: ContentState) -> dict:
         start = time.monotonic()
-        research = state.get("research_output") or {}
-        knowledge = state.get("knowledge_output") or {}
+        research = state.research_output or {}
+        knowledge = state.knowledge_output or {}
 
         findings = research.get("findings", [])
         tags = knowledge.get("recent_tags", [])
@@ -45,17 +45,23 @@ def make_topic_selection_node():
                 )
 
         candidates.sort(key=lambda c: c.get("relevance_score", 0), reverse=True)
-        selected = candidates[0] if candidates else {"title": state.get("topic", "General update")}
+        selected = candidates[0] if candidates else {"title": state.topic or "General update"}
 
         selected_title = selected.get("title", "")
-        topic = state.get("topic") or selected_title
+        topic = state.topic or selected_title
+        latency_ms = int((time.monotonic() - start) * 1000)
         result = {
             "topic": topic,
             "selected_candidate": selected,
             "candidates": candidates[:5],
             "total_candidates": len(candidates),
-            "latency_ms": int((time.monotonic() - start) * 1000),
+            "latency_ms": latency_ms,
         }
-        return {"topic_output": result, "current_step": "topic_selection"}
+        return {
+            "topic_output": result,
+            "current_step": "topic_selection",
+            "errors": list(state.errors),
+            "step_timing": {**state.step_timing, "topic_selection": latency_ms},
+        }
 
     return topic_selection_node

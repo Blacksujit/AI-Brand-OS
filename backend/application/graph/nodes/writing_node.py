@@ -15,26 +15,38 @@ logger = get_logger(__name__)
 def make_writing_node(llm: LLMClient | None = None, prompt_service: PromptService | None = None):
     async def writing_node(state: ContentState) -> dict:
         start = time.monotonic()
-        strategy_output = state.get("strategy_output") or {}
-        hooks_output = state.get("hooks_output") or {}
-        topic_output = state.get("topic_output") or {}
+        strategy_output = state.strategy_output or {}
+        hooks_output = state.hooks_output or {}
+        topic_output = state.topic_output or {}
+        state_errors = list(state.errors)
 
-        topic = strategy_output.get("topic", state.get("topic", ""))
+        topic = strategy_output.get("topic", state.topic or "")
         strategy = strategy_output.get("strategy", {})
         selected_hook = hooks_output.get("selected_hook", {}).get("text", "")
 
         if llm:
-            draft = await _llm_draft(topic, selected_hook, strategy, state, llm, prompt_service)
+            try:
+                draft = await _llm_draft(topic, selected_hook, strategy, state, llm, prompt_service)
+            except Exception as exc:
+                state_errors.append({"step": "writing", "message": str(exc)})
+                logger.warning("writing_node_llm_failed", error=str(exc))
+                draft = _default_draft(topic, selected_hook)
         else:
             draft = _default_draft(topic, selected_hook)
 
+        latency_ms = int((time.monotonic() - start) * 1000)
         result: dict[str, Any] = {
             "topic": topic,
             "draft": draft,
             "word_count": len(draft.get("body", "").split()),
-            "latency_ms": int((time.monotonic() - start) * 1000),
+            "latency_ms": latency_ms,
         }
-        return {"draft_output": result, "current_step": "writing"}
+        return {
+            "draft_output": result,
+            "current_step": "writing",
+            "errors": state_errors,
+            "step_timing": {**state.step_timing, "writing": latency_ms},
+        }
 
     return writing_node
 
@@ -47,46 +59,42 @@ async def _llm_draft(
     llm: LLMClient,
     prompt_service: PromptService | None,
 ) -> dict[str, str]:
-    try:
-        kp = strategy.get("key_points", [])
-        user_vars = {
-            "topic": topic,
-            "hook": hook,
-            "angle": strategy.get("angle", ""),
-            "key_points": ", ".join(kp) if isinstance(kp, list) else str(kp),
-            "tone": strategy.get("tone", state.get("tone", "conversational")),
-            "target_audience": strategy.get("target_audience", "peers"),
-            "platform": state.get("platform", "linkedin"),
-            "max_length": str(state.get("max_length", 280)),
-        }
+    kp = strategy.get("key_points", [])
+    user_vars = {
+        "topic": topic,
+        "hook": hook,
+        "angle": strategy.get("angle", ""),
+        "key_points": ", ".join(kp) if isinstance(kp, list) else str(kp),
+        "tone": strategy.get("tone", state.tone),
+        "target_audience": strategy.get("target_audience", "peers"),
+        "platform": state.platform,
+        "max_length": str(state.max_length),
+    }
 
-        if prompt_service:
-            system_prompt, user_prompt_content = prompt_service.build_prompt(
-                "writing_agent",
-                system_vars={"topic": topic, "platform": state.get("platform", "linkedin")},
-                user_vars=user_vars,
-            )
-        else:
-            system_prompt = f"You are a professional content writer. Write a post about {topic}."
-            user_prompt_content = (
-                f"Topic: {topic}\nHook: {hook}\nAngle: {user_vars['angle']}\n"
-                f"Key points: {user_vars['key_points']}\n"
-                f"Tone: {user_vars['tone']}\nPlatform: {user_vars['platform']}"
-            )
-
-        request = CompletionRequest(
-            model="gemini-2.0-flash",
-            messages=[ChatMessage(role="user", content=user_prompt_content)],
-            system_prompt=system_prompt,
-            temperature=0.7,
-            max_tokens=2048,
-            response_format="json_object",
+    if prompt_service:
+        system_prompt, user_prompt_content = prompt_service.build_prompt(
+            "writing_agent",
+            system_vars={"topic": topic, "platform": state.platform},
+            user_vars=user_vars,
         )
-        response = await llm.complete(request)
-        return json.loads(response.content)
-    except Exception as exc:
-        logger.warning("writing_node_llm_failed", error=str(exc))
-        return _default_draft(topic, hook)
+    else:
+        system_prompt = f"You are a professional content writer. Write a post about {topic}."
+        user_prompt_content = (
+            f"Topic: {topic}\nHook: {hook}\nAngle: {user_vars['angle']}\n"
+            f"Key points: {user_vars['key_points']}\n"
+            f"Tone: {user_vars['tone']}\nPlatform: {user_vars['platform']}"
+        )
+
+    request = CompletionRequest(
+        model="gemini-2.0-flash",
+        messages=[ChatMessage(role="user", content=user_prompt_content)],
+        system_prompt=system_prompt,
+        temperature=0.7,
+        max_tokens=2048,
+        response_format="json_object",
+    )
+    response = await llm.complete(request)
+    return json.loads(response.content)
 
 
 def _default_draft(topic: str, hook: str) -> dict[str, str]:

@@ -94,6 +94,29 @@ class PipelineOutputResponse(BaseModel):
     topic: str = ""
 
 
+class RegenerateRequest(BaseModel):
+    topic: str | None = Field(default=None, max_length=500)
+    platform: str = Field(default="linkedin", max_length=32)
+    tone: str = Field(default="professional", max_length=32)
+    max_length: int = Field(default=300, ge=50, le=3000)
+
+
+class GenerateResponse(BaseModel):
+    pipeline_id: str
+    title: str
+    body: str
+    hook: str = ""
+    call_to_action: str = ""
+    hashtags: list[str] = []
+    word_count: int = 0
+    quality_score: float = 0.0
+    quality_verdict: str = ""
+    duration_ms: int = 0
+    requires_human_approval: bool = False
+    steps_completed: list[str] = []
+    errors: list[dict] = []
+
+
 class HistoryListResponse(BaseModel):
     records: list[GeneratedPostResponse]
     total: int

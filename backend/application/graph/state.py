@@ -1,31 +1,32 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from pydantic import BaseModel, Field
 
 
-class ContentState(TypedDict):
+class ContentState(BaseModel):
     user_id: str
     session_id: str
     pipeline_id: str
-    topic: str | None
-    platform: str
-    tone: str
-    max_length: int
+    topic: str | None = None
+    platform: str = "linkedin"
+    tone: str = "professional"
+    max_length: int = 280
 
-    current_step: str
-    errors: list[str]
-    requires_human_approval: bool
+    current_step: str = ""
+    errors: list[dict] = Field(default_factory=list)
+    requires_human_approval: bool = False
 
-    research_output: dict | None
-    knowledge_output: dict | None
-    memory_output: dict | None
-    topic_output: dict | None
-    strategy_output: dict | None
-    hooks_output: dict | None
-    draft_output: dict | None
-    review_output: dict | None
-    analytics_output: dict | None
+    research_output: dict | None = None
+    knowledge_output: dict | None = None
+    memory_output: dict | None = None
+    topic_output: dict | None = None
+    strategy_output: dict | None = None
+    hooks_output: dict | None = None
+    draft_output: dict | None = None
+    review_output: dict | None = None
+    analytics_output: dict | None = None
 
-    final_output: dict | None
+    final_output: dict | None = None
 
-    step_timing: dict[str, float]
+    revision_count: int = 0
+    step_timing: dict[str, float] = Field(default_factory=dict)

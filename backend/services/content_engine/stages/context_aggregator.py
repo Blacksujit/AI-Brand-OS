@@ -46,8 +46,8 @@ class ContextAggregator:
 
         if self._trend_service:
             try:
-                trends = await self._trend_service.get_global_trending()
-                trending_topics = [t.title for t in trends[:10]] if trends else []
+                trends = await self._trend_service.get_trending_topics()
+                trending_topics = [t.name for t in trends[:10]] if trends else []
                 if trending_topics:
                     signals.has_trends = True
             except Exception as exc:

@@ -6,39 +6,26 @@ from typing import Any
 import pytest
 
 from application.graph.graph import _route_from_review, build_content_graph
-from application.graph.nodes.analytics_node import analytics_node
-from application.graph.nodes.memory_node import memory_node
+from application.graph.nodes.analytics_node import make_analytics_node
+from application.graph.nodes.memory_node import make_memory_node
 from application.graph.nodes.research_node import make_research_node
 from application.graph.nodes.topic_selection_node import make_topic_selection_node
 from application.graph.state import ContentState
 
 
 def _make_state(overrides: dict[str, Any] | None = None) -> ContentState:
-    base: ContentState = {
-        "user_id": str(uuid.uuid4()),
-        "session_id": str(uuid.uuid4()),
-        "pipeline_id": str(uuid.uuid4()),
-        "topic": None,
-        "platform": "linkedin",
-        "tone": "professional",
-        "max_length": 280,
-        "current_step": "",
-        "errors": [],
-        "requires_human_approval": False,
-        "research_output": None,
-        "knowledge_output": None,
-        "memory_output": None,
-        "topic_output": None,
-        "strategy_output": None,
-        "hooks_output": None,
-        "draft_output": None,
-        "review_output": None,
-        "analytics_output": None,
-        "final_output": None,
-        "step_timing": {},
-    }
+    base = ContentState(
+        user_id=str(uuid.uuid4()),
+        session_id=str(uuid.uuid4()),
+        pipeline_id=str(uuid.uuid4()),
+        topic=None,
+        platform="linkedin",
+        tone="professional",
+        max_length=280,
+    )
     if overrides:
-        base.update(overrides)
+        for k, v in overrides.items():
+            setattr(base, k, v)
     return base
 
 
@@ -80,13 +67,13 @@ class TestRouteFromReview:
         state = _make_state({"review_output": {"recommended_action": "reject"}})
         assert _route_from_review(state) == "reject"
 
-    def test_revise_routes_to_human_review(self) -> None:
+    def test_revise_routes_to_revise(self) -> None:
         state = _make_state({"review_output": {"recommended_action": "revise"}})
-        assert _route_from_review(state) == "human_review"
+        assert _route_from_review(state) == "revise"
 
-    def test_major_revision_routes_to_human_review(self) -> None:
+    def test_major_revision_routes_to_revise(self) -> None:
         state = _make_state({"review_output": {"recommended_action": "major_revision"}})
-        assert _route_from_review(state) == "human_review"
+        assert _route_from_review(state) == "revise"
 
     def test_default_approve_when_no_review(self) -> None:
         state = _make_state()
@@ -148,8 +135,9 @@ class TestTopicSelectionNode:
 class TestMemoryNode:
     @pytest.mark.asyncio
     async def test_memory_returns_defaults(self) -> None:
+        node = make_memory_node()
         state = _make_state()
-        result = await memory_node(state)
+        result = await node(state)
         assert "memory_output" in result
         mo = result["memory_output"]
         assert mo["session_count"] == 1
@@ -159,25 +147,27 @@ class TestMemoryNode:
 class TestAnalyticsNode:
     @pytest.mark.asyncio
     async def test_analytics_with_good_score(self) -> None:
+        node = make_analytics_node()
         state = _make_state(
             {
                 "review_output": {"score": 0.85, "issues": []},
                 "draft_output": {"draft": {"body": "Test body content here for the post"}},
             }
         )
-        result = await analytics_node(state)
+        result = await node(state)
         ao = result["analytics_output"]
         assert ao["quality_label"] == "excellent"
 
     @pytest.mark.asyncio
     async def test_analytics_with_low_score(self) -> None:
+        node = make_analytics_node()
         state = _make_state(
             {
                 "review_output": {"score": 0.3, "issues": [{"severity": "critical", "aspect": "length", "suggestion": "Too short"}]},
                 "draft_output": {"draft": {"body": "Short"}},
             }
         )
-        result = await analytics_node(state)
+        result = await node(state)
         ao = result["analytics_output"]
         assert ao["quality_label"] == "needs_improvement"
         assert len(ao["recommendations"]) > 0
@@ -261,7 +251,7 @@ class TestGraphStateTransitions:
         builder.add_conditional_edges(
             "review",
             _route_from_review,
-            {"approve": END, "human_review": END, "reject": END},
+            {"approve": END, "revise": END, "reject": END},
         )
         mini_graph = builder.compile()
         result = await mini_graph.ainvoke(start_state)

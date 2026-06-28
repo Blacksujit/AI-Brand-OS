@@ -5,7 +5,10 @@ from collections import Counter
 from typing import Any
 
 from application.graph.state import ContentState
+from core.logging import get_logger
 from services.research import ResearchService
+
+logger = get_logger(__name__)
 
 
 def make_research_node(research_service: ResearchService | None = None):
@@ -13,24 +16,33 @@ def make_research_node(research_service: ResearchService | None = None):
         start = time.monotonic()
         expertise: list[str] = []
         findings: list[dict[str, Any]] = []
+        state_errors = list(state.errors)
 
         if research_service:
             try:
                 raw = await research_service.get_context_for_agent(
-                    state["user_id"], expertise or None
+                    state.user_id, expertise or None
                 )
                 findings = raw
-            except Exception:
+            except Exception as exc:
+                state_errors.append({"step": "research", "message": str(exc)})
+                logger.warning("research_node_failed", error=str(exc))
                 findings = []
 
+        latency_ms = int((time.monotonic() - start) * 1000)
         result = {
             "findings": findings,
             "total_findings": len(findings),
             "sources_queried": 1 if findings else 0,
             "dominant_theme": _extract_theme(findings),
-            "latency_ms": int((time.monotonic() - start) * 1000),
+            "latency_ms": latency_ms,
         }
-        return {"research_output": result, "current_step": "research"}
+        return {
+            "research_output": result,
+            "current_step": "research",
+            "errors": state_errors,
+            "step_timing": {**state.step_timing, "research": latency_ms},
+        }
 
     return research_node
 

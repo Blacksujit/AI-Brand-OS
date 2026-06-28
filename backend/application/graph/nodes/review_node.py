@@ -14,13 +14,19 @@ logger = get_logger(__name__)
 def make_review_node(llm: LLMClient | None = None, prompt_service: PromptService | None = None):
     async def review_node(state: ContentState) -> dict:
         start = time.monotonic()
-        draft_output = state.get("draft_output") or {}
+        draft_output = state.draft_output or {}
         draft = draft_output.get("draft", {})
         body = draft.get("body", "")
-        topic = draft_output.get("topic", state.get("topic", ""))
+        topic = draft_output.get("topic", state.topic or "")
+        state_errors = list(state.errors)
 
         if llm and body:
-            review = await _llm_review(body, topic, llm, prompt_service)
+            try:
+                review = await _llm_review(body, topic, llm, prompt_service)
+            except Exception as exc:
+                state_errors.append({"step": "review", "message": str(exc)})
+                logger.warning("review_node_llm_failed", error=str(exc))
+                review = _heuristic_review(body)
         else:
             review = _heuristic_review(body)
 
@@ -28,6 +34,7 @@ def make_review_node(llm: LLMClient | None = None, prompt_service: PromptService
         score = review.get("score", 0.5)
         recommended_action = review.get("recommended_action", "revise")
 
+        latency_ms = int((time.monotonic() - start) * 1000)
         result = {
             "topic": topic,
             "verdict": verdict,
@@ -36,13 +43,16 @@ def make_review_node(llm: LLMClient | None = None, prompt_service: PromptService
             "issues": review.get("issues", []),
             "recommended_action": recommended_action,
             "requires_regeneration": recommended_action == "reject",
-            "latency_ms": int((time.monotonic() - start) * 1000),
+            "latency_ms": latency_ms,
         }
         requires_human = recommended_action in ("revise", "major_revision", "reject")
         return {
             "review_output": result,
             "current_step": "review",
             "requires_human_approval": requires_human,
+            "errors": state_errors,
+            "step_timing": {**state.step_timing, "review": latency_ms},
+            "revision_count": state.revision_count + (1 if recommended_action != "approve" else 0),
         }
 
     return review_node
@@ -51,30 +61,26 @@ def make_review_node(llm: LLMClient | None = None, prompt_service: PromptService
 async def _llm_review(
     body: str, topic: str, llm: LLMClient, prompt_service: PromptService | None
 ) -> dict:
-    try:
-        if prompt_service:
-            system_prompt, user_prompt_content = prompt_service.build_prompt(
-                "review_agent",
-                system_vars={"topic": topic},
-                user_vars={"topic": topic, "post_body": body[:3000]},
-            )
-        else:
-            system_prompt = "You are a content quality reviewer. Review the post and return JSON."
-            user_prompt_content = f"Topic: {topic}\n\nPost:\n{body[:3000]}"
-
-        request = CompletionRequest(
-            model="gemini-2.0-flash",
-            messages=[ChatMessage(role="user", content=user_prompt_content)],
-            system_prompt=system_prompt,
-            temperature=0.3,
-            max_tokens=1024,
-            response_format="json_object",
+    if prompt_service:
+        system_prompt, user_prompt_content = prompt_service.build_prompt(
+            "review_agent",
+            system_vars={"topic": topic},
+            user_vars={"topic": topic, "post_body": body[:3000]},
         )
-        response = await llm.complete(request)
-        return json.loads(response.content)
-    except Exception as exc:
-        logger.warning("review_node_llm_failed", error=str(exc))
-        return _heuristic_review(body)
+    else:
+        system_prompt = "You are a content quality reviewer. Review the post and return JSON."
+        user_prompt_content = f"Topic: {topic}\n\nPost:\n{body[:3000]}"
+
+    request = CompletionRequest(
+        model="gemini-2.0-flash",
+        messages=[ChatMessage(role="user", content=user_prompt_content)],
+        system_prompt=system_prompt,
+        temperature=0.3,
+        max_tokens=1024,
+        response_format="json_object",
+    )
+    response = await llm.complete(request)
+    return json.loads(response.content)
 
 
 def _heuristic_review(body: str) -> dict:

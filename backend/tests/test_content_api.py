@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
@@ -246,6 +246,144 @@ class TestPipeline:
         assert data["total_duration_ms"] == 2000
 
 
+class TestGenerate:
+    @pytest.mark.asyncio
+    async def test_generate_success(self, client: AsyncClient) -> None:
+        mock_state = MagicMock()
+        mock_state.draft_output = {
+            "draft": {
+                "title": "AI Trends",
+                "body": "This is a generated post body.",
+                "hook": "Did you know?",
+                "call_to_action": "Share now",
+                "hashtags": ["#AI"],
+            },
+        }
+        mock_state.review_output = {"score": 0.88, "verdict": "pass", "recommended_action": "approve"}
+        mock_state.strategy_output = {"topic": "AI Trends"}
+        mock_state.errors = []
+        mock_state.requires_human_approval = False
+
+        with patch("api.v1.content._get_content_graph") as mock_get_graph:
+            mock_graph = AsyncMock()
+            mock_graph.ainvoke = AsyncMock(return_value=mock_state)
+            mock_get_graph.return_value = mock_graph
+
+            with patch("api.v1.content.HistoryService.record_generation", new_callable=AsyncMock):
+                response = await client.post(
+                    "/api/v1/content/generate",
+                    json={
+                        "topic": "AI in Marketing",
+                        "platform": "linkedin",
+                        "tone": "professional",
+                        "max_length": 300,
+                    },
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["title"] == "AI Trends"
+        assert data["body"] == "This is a generated post body."
+        assert data["hook"] == "Did you know?"
+        assert data["quality_score"] == 0.88
+        assert data["quality_verdict"] == "pass"
+        assert data["hashtags"] == ["#AI"]
+        assert data["word_count"] > 0
+        assert data["duration_ms"] >= 0
+        assert data["errors"] == []
+        assert "steps_completed" in data
+
+    @pytest.mark.asyncio
+    async def test_generate_with_errors(self, client: AsyncClient) -> None:
+        mock_state = MagicMock()
+        mock_state.draft_output = {}
+        mock_state.review_output = {"score": 0, "verdict": "fail", "recommended_action": "reject"}
+        mock_state.strategy_output = {}
+        mock_state.errors = [{"step": "research", "message": "API timeout"}]
+        mock_state.requires_human_approval = False
+
+        with patch("api.v1.content._get_content_graph") as mock_get_graph:
+            mock_graph = AsyncMock()
+            mock_graph.ainvoke = AsyncMock(return_value=mock_state)
+            mock_get_graph.return_value = mock_graph
+
+            response = await client.post(
+                "/api/v1/content/generate",
+                json={"topic": "test"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["quality_score"] == 0
+        assert len(data["errors"]) == 1
+        assert data["errors"][0]["step"] == "research"
+
+
+class TestRegenerate:
+    @pytest.mark.asyncio
+    async def test_regenerate_success(self, client: AsyncClient) -> None:
+        mock_state = MagicMock()
+        mock_state.draft_output = {
+            "draft": {
+                "title": "Regenerated Post",
+                "body": "Regenerated body content.",
+                "hook": "New hook!",
+                "call_to_action": "Check it out",
+                "hashtags": ["#Regen"],
+            },
+        }
+        mock_state.review_output = {"score": 0.75, "verdict": "good", "recommended_action": "approve"}
+        mock_state.strategy_output = {"topic": "Regenerated Post"}
+        mock_state.errors = []
+        mock_state.requires_human_approval = False
+
+        with patch("api.v1.content._get_content_graph") as mock_get_graph:
+            mock_graph = AsyncMock()
+            mock_graph.ainvoke = AsyncMock(return_value=mock_state)
+            mock_get_graph.return_value = mock_graph
+
+            with patch("api.v1.content.HistoryService.record_generation", new_callable=AsyncMock):
+                response = await client.post(
+                    "/api/v1/content/regenerate",
+                    json={
+                        "topic": "AI Trends Revised",
+                        "platform": "linkedin",
+                        "tone": "inspirational",
+                        "max_length": 400,
+                    },
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["title"] == "Regenerated Post"
+        assert data["body"] == "Regenerated body content."
+        assert data["hook"] == "New hook!"
+        assert data["quality_score"] == 0.75
+
+    @pytest.mark.asyncio
+    async def test_regenerate_minimal_body(self, client: AsyncClient) -> None:
+        mock_state = MagicMock()
+        mock_state.draft_output = {}
+        mock_state.review_output = {"score": 0, "verdict": "fail", "recommended_action": "reject"}
+        mock_state.strategy_output = {}
+        mock_state.errors = []
+        mock_state.requires_human_approval = False
+
+        with patch("api.v1.content._get_content_graph") as mock_get_graph:
+            mock_graph = AsyncMock()
+            mock_graph.ainvoke = AsyncMock(return_value=mock_state)
+            mock_get_graph.return_value = mock_graph
+
+            response = await client.post(
+                "/api/v1/content/regenerate",
+                json={"topic": "New Topic"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["body"] == ""
+
+
 class TestIdeas:
     @pytest.mark.asyncio
     async def test_generate_ideas(
@@ -259,19 +397,24 @@ class TestIdeas:
             relevance_score=0.92,
         )
 
-        with patch("api.v1.content.ContentEngine") as mock_engine_cls:
-            mock_instance = AsyncMock()
-            mock_engine_cls.return_value = mock_instance
-            mock_instance.generate_ideas = AsyncMock(return_value=[mock_idea])
+        with patch("services.content_engine.stages.idea_generator.IdeaGenerator") as mock_idea_gen_cls:
+            mock_idea_gen = AsyncMock()
+            mock_idea_gen_cls.return_value = mock_idea_gen
+            mock_idea_gen.generate = AsyncMock(return_value=[mock_idea])
 
-            response = await client.post(
-                "/api/v1/content/ideas",
-                json={
-                    "topic": "AI Marketing",
-                    "platform": "linkedin",
-                    "count": 5,
-                },
-            )
+            with patch("services.content_engine.stages.context_aggregator.ContextAggregator") as mock_agg_cls:
+                mock_agg = AsyncMock()
+                mock_agg_cls.return_value = mock_agg
+                mock_agg.aggregate = AsyncMock(return_value=MagicMock())
+
+                response = await client.post(
+                    "/api/v1/content/ideas",
+                    json={
+                        "topic": "AI Marketing",
+                        "platform": "linkedin",
+                        "count": 5,
+                    },
+                )
 
         assert response.status_code == 200
         data = response.json()
@@ -290,15 +433,20 @@ class TestIdeas:
         self,
         client: AsyncClient,
     ) -> None:
-        with patch("api.v1.content.ContentEngine") as mock_engine_cls:
-            mock_instance = AsyncMock()
-            mock_engine_cls.return_value = mock_instance
-            mock_instance.generate_ideas = AsyncMock(return_value=[])
+        with patch("services.content_engine.stages.idea_generator.IdeaGenerator") as mock_idea_gen_cls:
+            mock_idea_gen = AsyncMock()
+            mock_idea_gen_cls.return_value = mock_idea_gen
+            mock_idea_gen.generate = AsyncMock(return_value=[])
 
-            response = await client.post(
-                "/api/v1/content/ideas",
-                json={},
-            )
+            with patch("services.content_engine.stages.context_aggregator.ContextAggregator") as mock_agg_cls:
+                mock_agg = AsyncMock()
+                mock_agg_cls.return_value = mock_agg
+                mock_agg.aggregate = AsyncMock(return_value=MagicMock())
+
+                response = await client.post(
+                    "/api/v1/content/ideas",
+                    json={},
+                )
 
         assert response.status_code == 200
         data = response.json()

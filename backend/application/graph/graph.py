@@ -6,10 +6,10 @@ from typing import Any
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 
-from application.graph.nodes.analytics_node import analytics_node
+from application.graph.nodes.analytics_node import make_analytics_node
 from application.graph.nodes.hook_generation_node import make_hook_generation_node
 from application.graph.nodes.knowledge_node import make_knowledge_node
-from application.graph.nodes.memory_node import memory_node
+from application.graph.nodes.memory_node import make_memory_node
 from application.graph.nodes.research_node import make_research_node
 from application.graph.nodes.review_node import make_review_node
 from application.graph.nodes.strategy_node import make_strategy_node
@@ -37,13 +37,13 @@ def build_content_graph(
 
     builder.add_node("research", make_research_node(research_service))
     builder.add_node("knowledge", make_knowledge_node(kb_service))
-    builder.add_node("memory", memory_node)
+    builder.add_node("memory", make_memory_node())
     builder.add_node("topic_selection", make_topic_selection_node())
     builder.add_node("strategy", make_strategy_node(llm, prompt_service))
     builder.add_node("hook_generation", make_hook_generation_node(llm, prompt_service))
     builder.add_node("writing", make_writing_node(llm, prompt_service))
     builder.add_node("review", make_review_node(llm, prompt_service))
-    builder.add_node("analytics", analytics_node)
+    builder.add_node("analytics", make_analytics_node())
 
     builder.add_edge(START, "research")
     builder.add_edge("research", "knowledge")
@@ -59,7 +59,7 @@ def build_content_graph(
         _route_from_review,
         {
             "approve": "analytics",
-            "human_review": END,
+            "revise": "writing",
             "reject": END,
         },
     )
@@ -70,11 +70,16 @@ def build_content_graph(
     return builder.compile(checkpointer=checkpointer)
 
 
+MAX_REVISIONS = 2
+
+
 def _route_from_review(state: ContentState) -> str:
-    review = state.get("review_output") or {}
+    review = state.review_output or {}
     action = review.get("recommended_action", "approve")
+    if state.revision_count >= MAX_REVISIONS:
+        return "approve"
     if action == "reject":
         return "reject"
     if action in ("revise", "major_revision"):
-        return "human_review"
+        return "revise"
     return "approve"
