@@ -39,6 +39,9 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# Config (secrets)
+opencode.json
+
 # Coverage
 coverage/
 coverage.xml
