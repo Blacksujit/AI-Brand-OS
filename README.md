@@ -5,7 +5,7 @@
 BrandOS is an AI-powered platform that helps engineers and technical professionals transform their expertise into authentic, high-quality content. It combines a multi-agent LangGraph pipeline, a vector knowledge base, and a style-learning engine to produce writing that sounds like you—not a language model.
 
 <p align="center">
-  <img src="docs/architecture/brandos-banner.png" alt="BrandOS" width="720" />
+  <img src="./docs/images/image.png" alt="BrandOS" width="300" />
 </p>
 
 <p align="center">
