@@ -8,7 +8,6 @@ import { Button } from "@/features/ui/Button";
 import { Input } from "@/features/ui/Input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/features/ui/Select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/features/ui/Card";
-import { Badge } from "@/features/ui/Badge";
 import { Sparkles, Loader2, PenSquare, Type, Maximize } from "lucide-react";
 
 const PLATFORMS = ["linkedin", "twitter", "medium", "newsletter"] as const;
@@ -19,7 +18,11 @@ const TONES = [
   "educational",
 ] as const;
 
-export function PipelineForm() {
+interface PipelineFormProps {
+  onPipelineStart?: (pipelineId: string) => void;
+}
+
+export function PipelineForm({ onPipelineStart }: PipelineFormProps) {
   const searchParams = useSearchParams();
   const initialTopic = searchParams.get("topic") || "";
 
@@ -49,6 +52,7 @@ export function PipelineForm() {
     };
     addPipelineHistory(record);
     setActivePipeline(record);
+    onPipelineStart?.(result.pipeline_id);
   };
 
   return (
@@ -158,30 +162,6 @@ export function PipelineForm() {
           {mutation.isError && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
               {mutation.error?.message || "Generation failed"}
-            </div>
-          )}
-
-          {mutation.data && (
-            <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
-              <p className="font-medium flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                Pipeline started
-              </p>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-                <div>
-                  <span className="font-medium">ID:</span> {mutation.data.pipeline_id.slice(0, 8)}...
-                </div>
-                <div>
-                  <span className="font-medium">Status:</span>{" "}
-                  <Badge variant={mutation.data.is_complete ? "success" : "info"}>
-                    {mutation.data.is_complete ? "Complete" : "Running"}
-                  </Badge>
-                </div>
-                <div>
-                  <span className="font-medium">Steps:</span>{" "}
-                  {mutation.data.steps_completed.length}/{9}
-                </div>
-              </div>
             </div>
           )}
         </form>

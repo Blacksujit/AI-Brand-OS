@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useContentHistory, useUpdateRecordStatus } from "@/lib/api/hooks";
-import { QualityBadge } from "@/components/content/quality-badge";
-import { Button } from "@/components/ui/button";
+import { QualityBadge } from "@/features/ui/QualityBadge";
+import { Button } from "@/features/ui/Button";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All" },

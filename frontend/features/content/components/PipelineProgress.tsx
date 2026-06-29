@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/features/ui/Card";
 import { Badge } from "@/features/ui/Badge";
 import { usePipelinePolling } from "@/lib/api/hooks";
@@ -23,10 +24,19 @@ type StepId = typeof PIPELINE_STEPS[number]["id"];
 
 interface PipelineProgressProps {
   pipelineId: string;
+  onComplete?: () => void;
 }
 
-export function PipelineProgress({ pipelineId }: PipelineProgressProps) {
+export function PipelineProgress({ pipelineId, onComplete }: PipelineProgressProps) {
   const { data, isLoading, error, refetch } = usePipelinePolling(pipelineId);
+  const completedRef = useRef(false);
+
+  useEffect(() => {
+    if (data?.is_complete && !completedRef.current) {
+      completedRef.current = true;
+      onComplete?.();
+    }
+  }, [data?.is_complete, onComplete]);
 
   const getStepStatus = (stepId: StepId): "pending" | "running" | "complete" | "error" => {
     if (!data) return "pending";

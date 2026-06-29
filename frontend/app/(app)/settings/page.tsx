@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/features/ui/Button";
 
 export default function SettingsPage() {
   const [platform, setPlatform] = useState("linkedin");
