@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BrandOS | Workspace</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.cdnfonts.com/css/geist" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary-fixed": "#e2e2e2",
+                      "on-primary-fixed-variant": "#454747",
+                      "surface-dim": "#131315",
+                      "on-secondary-fixed-variant": "#2f2ebe",
+                      "surface": "#131315",
+                      "on-tertiary": "#233143",
+                      "secondary-fixed-dim": "#c0c1ff",
+                      "error-container": "#93000a",
+                      "background": "#131315",
+                      "on-secondary-fixed": "#07006c",
+                      "surface-container-high": "#2a2a2c",
+                      "on-surface-variant": "#c4c7c8",
+                      "inverse-on-surface": "#313032",
+                      "surface-container-highest": "#353437",
+                      "primary-container": "#e2e2e2",
+                      "outline-variant": "#444748",
+                      "tertiary-fixed-dim": "#b9c8de",
+                      "surface-container": "#201f22",
+                      "tertiary-fixed": "#d4e4fa",
+                      "tertiary": "#ffffff",
+                      "on-primary-container": "#636565",
+                      "surface-bright": "#39393b",
+                      "on-primary": "#2f3131",
+                      "surface-container-low": "#1c1b1d",
+                      "on-primary-fixed": "#1a1c1c",
+                      "primary-fixed-dim": "#c6c6c7",
+                      "error": "#ffb4ab",
+                      "on-secondary": "#1000a9",
+                      "on-secondary-container": "#b0b2ff",
+                      "primary": "#ffffff",
+                      "on-error": "#690005",
+                      "on-surface": "#e5e1e4",
+                      "tertiary-container": "#d4e4fa",
+                      "outline": "#8e9192",
+                      "secondary": "#c0c1ff",
+                      "inverse-primary": "#5d5f5f",
+                      "on-tertiary-fixed-variant": "#39485a",
+                      "on-tertiary-container": "#576679",
+                      "on-error-container": "#ffdad6",
+                      "surface-tint": "#c6c6c7",
+                      "inverse-surface": "#e5e1e4",
+                      "surface-container-lowest": "#0e0e10",
+                      "on-tertiary-fixed": "#0d1c2d",
+                      "secondary-fixed": "#e1e0ff",
+                      "secondary-container": "#3131c0",
+                      "on-background": "#e5e1e4",
+                      "surface-variant": "#353437"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "container-max": "1200px",
+                      "margin-mobile": "16px",
+                      "gutter": "24px",
+                      "margin-desktop": "40px",
+                      "unit": "4px"
+              },
+              "fontFamily": {
+                      "label-caps": ["JetBrains Mono"],
+                      "headline-md": ["Geist"],
+                      "code": ["JetBrains Mono"],
+                      "body-lg": ["Geist"],
+                      "headline-lg": ["Geist"],
+                      "display": ["Geist"],
+                      "body-md": ["Geist"],
+                      "headline-lg-mobile": ["Geist"]
+              },
+              "fontSize": {
+                      "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "headline-md": ["20px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                      "code": ["13px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "body-lg": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                      "display": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "headline-lg-mobile": ["24px", {"lineHeight": "1.2", "fontWeight": "500"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        body {
+            background-color: #09090b;
+            color: #e5e1e4;
+            font-family: 'Geist', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 20px;
+        }
+        .editor-content:focus {
+            outline: none;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2a2a2c;
+            border-radius: 10px;
+        }
+        .zinc-border {
+            border: 1px solid #27272a;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+<!-- Top Bar Component -->
+<header class="bg-surface/80 backdrop-blur-md dark:bg-surface/80 border-b border-outline-variant fixed top-0 left-0 right-0 z-50 flex justify-between items-center w-full px-margin-desktop h-16 max-w-container-max mx-auto">
+<div class="flex items-center gap-6">
+<span class="text-headline-md font-headline-md font-bold tracking-tight text-on-surface">BrandOS</span>
+<div class="hidden md:flex items-center gap-gutter">
+<a class="text-primary font-medium font-body-md text-body-md transition-colors duration-200" href="#">Workflow</a>
+<a class="text-on-surface-variant hover:text-primary font-body-md text-body-md transition-colors duration-200" href="#">Metrics</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 px-3 py-1.5 bg-surface-container rounded-lg zinc-border">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
+</span>
+<span class="text-label-caps font-label-caps text-on-surface-variant">Knowledge Indexing</span>
+</div>
+<button class="bg-primary text-on-primary px-4 py-1.5 rounded font-label-caps text-label-caps hover:bg-opacity-90 transition-all active:scale-95 duration-100">
+                Publish
+            </button>
+</div>
+</header>
+<main class="flex-1 flex pt-16 h-full overflow-hidden">
+<!-- Left Sidebar: Navigation & Context -->
+<aside class="bg-surface-container-low dark:bg-surface-container-low h-full w-64 hidden lg:flex flex-col border-r border-outline-variant flex-col h-full py-gutter px-4 transition-all duration-300">
+<div class="mb-8">
+<div class="flex items-center gap-3 px-2 py-2 mb-6">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center text-on-primary font-bold">P</div>
+<div>
+<div class="text-body-md font-bold text-on-surface leading-tight">Personal OS</div>
+<div class="text-[10px] font-label-caps text-on-surface-variant uppercase tracking-widest">System Active</div>
+</div>
+</div>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-primary border-l-2 border-primary bg-surface-variant/50 transition-all translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-label-caps font-label-caps">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-variant transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="article">article</span>
+<span class="text-label-caps font-label-caps">Content</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:bg-surface-variant transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="text-label-caps font-label-caps">Strategy</span>
+</a>
+</nav>
+</div>
+<div class="mt-4 flex-1">
+<h3 class="px-3 text-label-caps font-label-caps text-on-surface-variant/60 uppercase text-[10px] mb-3">Recent Drafts</h3>
+<div class="space-y-2">
+<div class="group px-3 py-2 rounded hover:bg-surface-variant/30 cursor-pointer">
+<p class="text-body-md text-on-surface truncate">The Engineering Paradox</p>
+<p class="text-[11px] text-on-surface-variant font-label-caps">2h ago</p>
+</div>
+<div class="group px-3 py-2 rounded hover:bg-surface-variant/30 cursor-pointer">
+<p class="text-body-md text-on-surface truncate">Modular UI Systems</p>
+<p class="text-[11px] text-on-surface-variant font-label-caps">Yesterday</p>
+</div>
+</div>
+</div>
+<div class="mt-auto pt-6 border-t border-outline-variant">
+<a class="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-label-caps font-label-caps">Settings</span>
+</a>
+</div>
+</aside>
+<!-- Center Pane: Editor -->
+<section class="flex-1 bg-background flex flex-col items-center overflow-y-auto px-6 md:px-12 py-12 scroll-smooth">
+<div class="w-full max-w-[720px] animate-in fade-in slide-in-from-bottom-4 duration-700">
+<div class="mb-12">
+<div class="flex items-center gap-2 mb-4">
+<span class="px-2 py-0.5 bg-zinc-900 border border-zinc-800 rounded text-[10px] font-label-caps text-on-surface-variant">DRAFT</span>
+<span class="text-[10px] font-label-caps text-on-surface-variant uppercase tracking-widest">• 1,204 WORDS</span>
+</div>
+<h1 class="text-display font-display text-on-surface focus:outline-none mb-4" contenteditable="true" spellcheck="false">
+                        Engineering Precision: The Future of Modular Architecture
+                    </h1>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]" data-icon="person">person</span>
+<span class="text-body-md font-body-md">Lead Architect</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]" data-icon="calendar_today">calendar_today</span>
+<span class="text-body-md font-body-md">Oct 24, 2024</span>
+</div>
+</div>
+</div>
+<div class="editor-content text-body-lg font-body-lg text-on-surface leading-relaxed space-y-8 focus:outline-none" contenteditable="true">
+<p>In the rapidly evolving landscape of technical infrastructure, the transition from monolithic systems to granular, modular architectures is no longer a luxury—it is a fundamental requirement for scaling at velocity.</p>
+<div class="relative group my-12">
+<div class="zinc-border overflow-hidden rounded-lg bg-surface-container">
+<img class="w-full aspect-video object-cover grayscale contrast-125 opacity-80 group-hover:opacity-100 transition-opacity duration-500" data-alt="A highly detailed technical cinematic visualization of abstract architectural blueprints with glowing blue lines and floating geometric modules in a dark minimalist studio setting. The lighting is focused and dramatic, highlighting the crystalline edges of the structures against a deep obsidian background. 8k resolution, professional architectural photography style, sophisticated and authoritative." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB52BBgl_RFHyAu8OjoufRx3tLNOmGETaoAEJ5KSd-XeTIDh0sxyLmgB1Kc-ckMGDrYsOYdk0KrKUwKOx_npRcdAwOSe9meOb8NcuIsjLw8NwRCe-wZd4juSsMXiPvw87FG1Vio9kGPrcZjvKzcuWweRBUjxy7fwilGpS7K1UD217K4Cv-B8sLz0Y6xQbivp6NezNsJ8r-vPxkPcC2Zr60EM0jMaZYmplfiETMATpy3MrPyzlU-LYSPrnZ5CGwJcXarA8S2jWjXUeo"/>
+</div>
+<p class="mt-4 text-center text-label-caps font-label-caps text-on-surface-variant/60 italic">Fig 1.1 — Visualization of systemic modularity in distributed networks.</p>
+</div>
+<p>True sophistication in design is achieved not when there is nothing more to add, but when there is nothing left to take away. As we examine the metrics of performance across these new frameworks, we observe a consistent 40% reduction in cognitive overhead for developers interacting with well-defined APIs.</p>
+<blockquote class="border-l-2 border-primary pl-8 my-10 italic text-headline-md font-headline-md text-on-surface">
+                        "The primary goal of architecture is to minimize the effort required to build and maintain a system while maximizing the potential for its evolution."
+                    </blockquote>
+<p>Modular design doesn't just apply to the back-end. It is a philosophy that must permeate every layer of the product—from the visual design system to the way we index and retrieve knowledge within our personal workspaces.</p>
+</div>
+</div>
+</section>
+<!-- Right Pane: AI Context & Insights -->
+<aside class="w-80 bg-surface-container-low border-l border-outline-variant hidden xl:flex flex-col overflow-y-auto">
+<div class="p-6 space-y-8">
+<!-- AI Summary Card -->
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<h4 class="text-label-caps font-label-caps text-on-surface-variant uppercase tracking-widest text-[10px]">AI Research Summary</h4>
+<span class="material-symbols-outlined text-secondary" data-icon="auto_awesome" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<div class="bg-surface-container-highest/30 p-4 rounded-lg zinc-border">
+<p class="text-body-md text-on-surface mb-3 leading-snug">This draft aligns with 84% of your previous technical essays on <strong>Modularity</strong> and <strong>Efficiency</strong>.</p>
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-1 bg-surface-container rounded text-[10px] font-label-caps text-on-surface-variant border border-outline-variant">SYSTEMS</span>
+<span class="px-2 py-1 bg-surface-container rounded text-[10px] font-label-caps text-on-surface-variant border border-outline-variant">ARCHITECTURE</span>
+</div>
+</div>
+</div>
+<!-- Knowledge Context -->
+<div class="space-y-4">
+<h4 class="text-label-caps font-label-caps text-on-surface-variant uppercase tracking-widest text-[10px]">Knowledge Context</h4>
+<div class="space-y-3">
+<div class="p-3 rounded-lg border border-outline-variant hover:bg-surface-variant/30 transition-colors cursor-pointer group">
+<p class="text-body-md text-on-surface font-medium mb-1 truncate">The Mythical Man-Month</p>
+<p class="text-[11px] text-on-surface-variant leading-tight opacity-70">Source: Local PDF Library • Fundamental concepts of software engineering.</p>
+</div>
+<div class="p-3 rounded-lg border border-outline-variant hover:bg-surface-variant/30 transition-colors cursor-pointer group">
+<p class="text-body-md text-on-surface font-medium mb-1 truncate">Tailwind v4 Specification</p>
+<p class="text-[11px] text-on-surface-variant leading-tight opacity-70">Source: Web Index • Documentation on new composable utility architectures.</p>
+</div>
+</div>
+</div>
+<!-- Why this topic? -->
+<div class="space-y-4">
+<h4 class="text-label-caps font-label-caps text-on-surface-variant uppercase tracking-widest text-[10px]">Why this topic?</h4>
+<div class="p-4 rounded-lg bg-primary-container/10 border border-primary/20">
+<p class="text-body-md text-on-surface-variant italic">
+                            "Engagement trends indicate a rising demand for content that bridges the gap between high-level management and low-level engineering implementation."
+                        </p>
+<div class="mt-3 flex items-center gap-2">
+<div class="h-1 flex-1 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-[70%]"></div>
+</div>
+<span class="text-[10px] font-label-caps text-on-surface-variant">70% Relevance</span>
+</div>
+</div>
+</div>
+<!-- Toolbelt -->
+<div class="pt-6">
+<div class="grid grid-cols-2 gap-3">
+<button class="flex flex-col items-center justify-center p-4 zinc-border rounded-lg hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined mb-2 text-on-surface-variant" data-icon="schema">schema</span>
+<span class="text-label-caps font-label-caps text-[10px]">MAP</span>
+</button>
+<button class="flex flex-col items-center justify-center p-4 zinc-border rounded-lg hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined mb-2 text-on-surface-variant" data-icon="history">history</span>
+<span class="text-label-caps font-label-caps text-[10px]">REVISIONS</span>
+</button>
+</div>
+</div>
+</div>
+</aside>
+</main>
+<!-- Contextual FAB (Only for specific actions as per mandate) -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary text-on-primary rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-[60] lg:hidden">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+<script>
+        // Micro-interaction for indexing indicator
+        const indexingIndicator = document.querySelector('.animate-ping');
+        let speed = 2000;
+        
+        // Simulating focus transitions
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                alert('Command Palette Coming Soon');
+            }
+        });
+
+        // Basic auto-save simulation
+        const editor = document.querySelector('.editor-content');
+        let timeout = null;
+        
+        editor.addEventListener('input', () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                console.log('Draft saved to local index...');
+            }, 1000);
+        });
+    </script>
+</body></html>

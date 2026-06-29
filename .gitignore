@@ -2,6 +2,8 @@
 claude-skills/
 .claude
 .agents
+download-stitch.js
+fetch-stitch.js
 
 # Python
 __pycache__/

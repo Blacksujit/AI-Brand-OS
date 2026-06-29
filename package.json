@@ -1,0 +1,27 @@
+{
+  "name": "ai-brand-os",
+  "version": "1.0.0",
+  "description": "**The operating system for technical personal branding.**",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Blacksujit/AI-Brand-OS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Blacksujit/AI-Brand-OS/issues"
+  },
+  "homepage": "https://github.com/Blacksujit/AI-Brand-OS#readme",
+  "dependencies": {
+    "node-fetch": "^2.7.0"
+  }
+}

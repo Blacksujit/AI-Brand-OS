@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BrandOS | Connect Identity</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Geist:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .terminal-scroll::-webkit-scrollbar {
+            width: 2px;
+        }
+        .terminal-scroll::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0);
+        }
+        .terminal-scroll::-webkit-scrollbar-thumb {
+            background: #444748;
+        }
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        .scanline-effect {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.03), transparent);
+            height: 50%;
+            animation: scanline 4s linear infinite;
+            pointer-events: none;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed": "#e2e2e2",
+                        "on-primary-fixed-variant": "#454747",
+                        "surface-dim": "#131315",
+                        "on-secondary-fixed-variant": "#2f2ebe",
+                        "surface": "#131315",
+                        "on-tertiary": "#233143",
+                        "secondary-fixed-dim": "#c0c1ff",
+                        "error-container": "#93000a",
+                        "background": "#131315",
+                        "on-secondary-fixed": "#07006c",
+                        "surface-container-high": "#2a2a2c",
+                        "on-surface-variant": "#c4c7c8",
+                        "inverse-on-surface": "#313032",
+                        "surface-container-highest": "#353437",
+                        "primary-container": "#e2e2e2",
+                        "outline-variant": "#444748",
+                        "tertiary-fixed-dim": "#b9c8de",
+                        "surface-container": "#201f22",
+                        "tertiary-fixed": "#d4e4fa",
+                        "tertiary": "#ffffff",
+                        "on-primary-container": "#636565",
+                        "surface-bright": "#39393b",
+                        "on-primary": "#2f3131",
+                        "surface-container-low": "#1c1b1d",
+                        "on-primary-fixed": "#1a1c1c",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "error": "#ffb4ab",
+                        "on-secondary": "#1000a9",
+                        "on-secondary-container": "#b0b2ff",
+                        "primary": "#ffffff",
+                        "on-error": "#690005",
+                        "on-surface": "#e5e1e4",
+                        "tertiary-container": "#d4e4fa",
+                        "outline": "#8e9192",
+                        "secondary": "#c0c1ff",
+                        "inverse-primary": "#5d5f5f",
+                        "on-tertiary-fixed-variant": "#39485a",
+                        "on-tertiary-container": "#576679",
+                        "on-error-container": "#ffdad6",
+                        "surface-tint": "#c6c6c7",
+                        "inverse-surface": "#e5e1e4",
+                        "surface-container-lowest": "#0e0e10",
+                        "on-tertiary-fixed": "#0d1c2d",
+                        "secondary-fixed": "#e1e0ff",
+                        "secondary-container": "#3131c0",
+                        "on-background": "#e5e1e4",
+                        "surface-variant": "#353437"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-max": "1200px",
+                        "margin-mobile": "16px",
+                        "gutter": "24px",
+                        "margin-desktop": "40px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["JetBrains Mono"],
+                        "headline-md": ["Geist"],
+                        "code": ["JetBrains Mono"],
+                        "body-lg": ["Geist"],
+                        "headline-lg": ["Geist"],
+                        "display": ["Geist"],
+                        "body-md": ["Geist"],
+                        "headline-lg-mobile": ["Geist"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-md": ["20px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                        "code": ["13px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                        "display": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "1.2", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen selection:bg-primary selection:text-surface overflow-x-hidden">
+<!-- Top Navigation (Shell Implementation) -->
+<nav class="fixed top-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant h-16 flex items-center px-margin-desktop">
+<div class="max-w-container-max mx-auto w-full flex justify-between items-center">
+<span class="text-headline-md font-headline-md font-bold tracking-tight text-on-surface">BrandOS</span>
+<div class="hidden md:flex gap-8 items-center">
+<span class="text-label-caps font-label-caps text-on-surface-variant cursor-not-allowed">Onboarding Phase: Active</span>
+<button class="bg-primary text-surface px-6 py-2 rounded-lg text-label-caps font-label-caps font-bold hover:scale-95 transition-transform">
+                    Exit Setup
+                </button>
+</div>
+</div>
+</nav>
+<main class="pt-32 pb-24 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto">
+<!-- Progress Stepper -->
+<div class="flex justify-between items-center max-w-2xl mx-auto mb-16 relative">
+<div class="absolute top-1/2 left-0 w-full h-[1px] bg-outline-variant -z-10"></div>
+<div class="flex flex-col items-center gap-3 bg-background px-4">
+<div class="w-8 h-8 rounded-full border border-primary flex items-center justify-center text-primary bg-primary/10">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</div>
+<span class="text-label-caps font-label-caps text-on-surface-variant">Welcome</span>
+</div>
+<div class="flex flex-col items-center gap-3 bg-background px-4">
+<div class="w-8 h-8 rounded-full border-2 border-primary flex items-center justify-center text-primary font-bold">
+                    2
+                </div>
+<span class="text-label-caps font-label-caps text-primary">Connect</span>
+</div>
+<div class="flex flex-col items-center gap-3 bg-background px-4">
+<div class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant">
+                    3
+                </div>
+<span class="text-label-caps font-label-caps text-on-surface-variant">Style</span>
+</div>
+<div class="flex flex-col items-center gap-3 bg-background px-4">
+<div class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant">
+                    4
+                </div>
+<span class="text-label-caps font-label-caps text-on-surface-variant">Index</span>
+</div>
+</div>
+<!-- Hero Section -->
+<header class="text-center mb-20">
+<h1 class="text-headline-lg-mobile md:text-headline-lg font-headline-lg text-primary mb-4">Introduce yourself to the system.</h1>
+<p class="text-body-lg font-body-lg text-on-surface-variant max-w-2xl mx-auto">Connect your technical sources. BrandOS will analyze your repos, notes, and history to build your digital twin and professional index.</p>
+</header>
+<!-- Connection Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-12">
+<!-- GitHub Card -->
+<div class="group relative bg-surface-container-low border border-outline-variant p-6 rounded-xl hover:border-primary transition-all duration-300 cursor-pointer overflow-hidden" id="card-github">
+<div class="scanline-effect opacity-0 group-hover:opacity-100"></div>
+<div class="flex justify-between items-start mb-8">
+<div class="w-12 h-12 bg-surface-container-highest border border-outline-variant rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="terminal">terminal</span>
+</div>
+<span class="text-label-caps font-label-caps bg-surface-container-highest px-2 py-1 border border-outline-variant rounded opacity-60">Git</span>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary mb-2">GitHub</h3>
+<p class="text-body-md font-body-md text-on-surface-variant mb-6">Sync repositories and contribution patterns to build your technical graph.</p>
+<button class="w-full py-2 border border-outline-variant text-label-caps font-label-caps hover:bg-primary hover:text-surface transition-colors flex items-center justify-center gap-2" onclick="simulateConnect('github')">
+<span class="material-symbols-outlined text-[16px]">add</span>
+                    Connect Repo
+                </button>
+</div>
+<!-- Resume Card -->
+<div class="group relative bg-surface-container-low border border-outline-variant p-6 rounded-xl hover:border-primary transition-all duration-300 cursor-pointer overflow-hidden" id="card-resume">
+<div class="flex justify-between items-start mb-8">
+<div class="w-12 h-12 bg-surface-container-highest border border-outline-variant rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="description">description</span>
+</div>
+<span class="text-label-caps font-label-caps bg-surface-container-highest px-2 py-1 border border-outline-variant rounded opacity-60">PDF</span>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary mb-2">Resume</h3>
+<p class="text-body-md font-body-md text-on-surface-variant mb-6">Extract career narrative, achievements, and formal education history.</p>
+<button class="w-full py-2 border border-outline-variant text-label-caps font-label-caps hover:bg-primary hover:text-surface transition-colors flex items-center justify-center gap-2" onclick="simulateConnect('resume')">
+<span class="material-symbols-outlined text-[16px]">upload</span>
+                    Upload PDF
+                </button>
+</div>
+<!-- Portfolio Card -->
+<div class="group relative bg-surface-container-low border border-outline-variant p-6 rounded-xl hover:border-primary transition-all duration-300 cursor-pointer overflow-hidden" id="card-portfolio">
+<div class="flex justify-between items-start mb-8">
+<div class="w-12 h-12 bg-surface-container-highest border border-outline-variant rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="language">language</span>
+</div>
+<span class="text-label-caps font-label-caps bg-surface-container-highest px-2 py-1 border border-outline-variant rounded opacity-60">URL</span>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary mb-2">Portfolio</h3>
+<p class="text-body-md font-body-md text-on-surface-variant mb-6">Crawl your personal site to capture design language and project stories.</p>
+<button class="w-full py-2 border border-outline-variant text-label-caps font-label-caps hover:bg-primary hover:text-surface transition-colors flex items-center justify-center gap-2" onclick="simulateConnect('portfolio')">
+<span class="material-symbols-outlined text-[16px]">link</span>
+                    Input URL
+                </button>
+</div>
+<!-- Notes Card -->
+<div class="group relative bg-surface-container-low border border-outline-variant p-6 rounded-xl hover:border-primary transition-all duration-300 cursor-pointer overflow-hidden" id="card-notes">
+<div class="flex justify-between items-start mb-8">
+<div class="w-12 h-12 bg-surface-container-highest border border-outline-variant rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="edit_note">edit_note</span>
+</div>
+<span class="text-label-caps font-label-caps bg-surface-container-highest px-2 py-1 border border-outline-variant rounded opacity-60">JSON</span>
+</div>
+<h3 class="text-headline-md font-headline-md text-primary mb-2">Learning Notes</h3>
+<p class="text-body-md font-body-md text-on-surface-variant mb-6">Connect Notion or Obsidian to import your knowledge base and thought logs.</p>
+<button class="w-full py-2 border border-outline-variant text-label-caps font-label-caps hover:bg-primary hover:text-surface transition-colors flex items-center justify-center gap-2" onclick="simulateConnect('notes')">
+<span class="material-symbols-outlined text-[16px]">database</span>
+                    Sync Notes
+                </button>
+</div>
+</div>
+<!-- Indexing Console (Revealed on action) -->
+<div class="hidden opacity-0 translate-y-10 transition-all duration-700 bg-surface-container border border-outline-variant rounded-xl overflow-hidden shadow-2xl" id="indexing-section">
+<div class="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-high">
+<div class="flex items-center gap-4">
+<div class="flex gap-2">
+<div class="w-3 h-3 rounded-full bg-error/40"></div>
+<div class="w-3 h-3 rounded-full bg-secondary/40"></div>
+<div class="w-3 h-3 rounded-full bg-primary/40"></div>
+</div>
+<span class="text-label-caps font-label-caps text-on-surface-variant tracking-widest">BRAND_OS_INDEXER_V1.0</span>
+</div>
+<div class="flex items-center gap-3" id="indexing-status">
+<div class="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+<span class="text-label-caps font-label-caps text-primary animate-pulse">Indexing: <span id="source-name">GitHub</span></span>
+</div>
+</div>
+<div class="p-8 h-64 overflow-y-auto terminal-scroll font-code text-code bg-black/40" id="terminal-log">
+<div class="text-primary opacity-60 mb-2">[SYSTEM] Initialization complete. Starting deep discovery...</div>
+<!-- Dynamic logs will be injected here -->
+</div>
+<div class="p-8 bg-surface-container-low border-t border-outline-variant grid grid-cols-1 md:grid-cols-3 gap-8">
+<div>
+<span class="text-label-caps font-label-caps text-on-surface-variant block mb-2">Entities Identified</span>
+<span class="text-headline-lg font-headline-lg text-primary" id="stat-entities">0</span>
+</div>
+<div>
+<span class="text-label-caps font-label-caps text-on-surface-variant block mb-2">Topics Extracted</span>
+<span class="text-headline-lg font-headline-lg text-primary" id="stat-topics">0</span>
+</div>
+<div class="flex items-center justify-end">
+<button class="bg-primary text-surface px-8 py-3 rounded-lg text-label-caps font-label-caps font-bold hover:bg-primary-fixed transition-colors">
+                        Confirm Connections
+                    </button>
+</div>
+</div>
+</div>
+<!-- Atmospheric Visual -->
+<div class="mt-24 relative h-64 rounded-xl overflow-hidden border border-outline-variant">
+
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent"></div>
+<div class="absolute inset-0 flex items-center justify-center text-center p-8">
+<div>
+<h2 class="text-headline-md font-headline-md text-primary mb-2">Private &amp; Encrypted</h2>
+<p class="text-body-md font-body-md text-on-surface-variant max-w-lg">All imported data is processed locally within your instance. BrandOS never stores your source credentials or raw documents beyond the indexing phase.</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-margin-desktop bg-surface border-t border-outline-variant">
+<div class="max-w-container-max mx-auto px-margin-desktop flex flex-col md:flex-row justify-between items-center gap-gutter">
+<div class="flex flex-col gap-2">
+<span class="text-headline-md font-headline-md font-bold text-on-surface">BrandOS</span>
+<p class="text-body-md font-body-md text-on-surface-variant">© 2024 BrandOS. Engineered for clarity.</p>
+</div>
+<div class="flex gap-8">
+<a class="text-label-caps font-label-caps text-on-surface-variant hover:text-primary transition-all duration-300" href="#">Security</a>
+<a class="text-label-caps font-label-caps text-on-surface-variant hover:text-primary transition-all duration-300" href="#">Privacy</a>
+<a class="text-label-caps font-label-caps text-on-surface-variant hover:text-primary transition-all duration-300" href="#">Terms</a>
+<a class="text-label-caps font-label-caps text-on-surface-variant hover:text-primary transition-all duration-300" href="#">Changelog</a>
+</div>
+</div>
+</footer>
+<script>
+        const logs = [
+            { type: 'info', text: 'Connecting to OAuth gateway...' },
+            { type: 'info', text: 'Authorization successful. Scoping repositories.' },
+            { type: 'scan', text: 'Scanning /main branch: architecture.md found.' },
+            { type: 'scan', text: 'Analyzing language distribution: TypeScript (82%), Rust (12%).' },
+            { type: 'topic', text: 'Identified Expertise: Distributed Systems' },
+            { type: 'topic', text: 'Identified Expertise: LLM Orchestration' },
+            { type: 'info', text: 'Parsing commit history... 1,240 commits indexed.' },
+            { type: 'topic', text: 'Topic detected: API Design' },
+            { type: 'scan', text: 'Extracting tech stack metadata: Vite, TailwindCSS, Drizzle.' },
+            { type: 'info', text: 'Cross-referencing documentation with project structure.' },
+            { type: 'topic', text: 'Project Highlight: Vector Database Integration' },
+            { type: 'info', text: 'Finalizing knowledge graph nodes...' }
+        ];
+
+        let logIndex = 0;
+        let entitiesCount = 0;
+        let topicsCount = 0;
+
+        function simulateConnect(source) {
+            const section = document.getElementById('indexing-section');
+            const sourceLabel = document.getElementById('source-name');
+            const logContainer = document.getElementById('terminal-log');
+            const entityStat = document.getElementById('stat-entities');
+            const topicStat = document.getElementById('stat-topics');
+            
+            // Set source text
+            sourceLabel.innerText = source.charAt(0).toUpperCase() + source.slice(1);
+            
+            // Reveal section
+            section.classList.remove('hidden');
+            setTimeout(() => {
+                section.classList.remove('opacity-0', 'translate-y-10');
+            }, 50);
+
+            // Clear previous logs if any
+            logContainer.innerHTML = `<div class="text-primary opacity-60 mb-2">[SYSTEM] Resetting indexer for ${source}...</div>`;
+            logIndex = 0;
+            entitiesCount = 0;
+            topicsCount = 0;
+            entityStat.innerText = '0';
+            topicStat.innerText = '0';
+
+            // Start logging
+            const interval = setInterval(() => {
+                if (logIndex < logs.length) {
+                    const log = logs[logIndex];
+                    const div = document.createElement('div');
+                    div.className = 'mb-1 opacity-0 transition-opacity duration-300';
+                    
+                    let prefix = '[LOG]';
+                    let color = 'text-on-surface-variant';
+
+                    if (log.type === 'scan') {
+                        prefix = '[SCAN]';
+                        color = 'text-secondary';
+                        entitiesCount += Math.floor(Math.random() * 5) + 1;
+                    } else if (log.type === 'topic') {
+                        prefix = '[TOPIC]';
+                        color = 'text-primary';
+                        topicsCount++;
+                    }
+
+                    div.innerHTML = `<span class="opacity-40">${prefix}</span> <span class="${color}">${log.text}</span>`;
+                    logContainer.appendChild(div);
+                    
+                    // Trigger reflow for animation
+                    setTimeout(() => div.classList.remove('opacity-0'), 10);
+                    
+                    // Update stats
+                    entityStat.innerText = entitiesCount;
+                    topicStat.innerText = topicsCount;
+
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                    logIndex++;
+                } else {
+                    clearInterval(interval);
+                    document.getElementById('indexing-status').innerHTML = `
+                        <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1">check_circle</span>
+                        <span class="text-label-caps font-label-caps text-primary">Indexing Complete</span>
+                    `;
+                }
+            }, 600);
+        }
+    </script>
+</body></html>
