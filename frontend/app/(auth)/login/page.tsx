@@ -49,10 +49,10 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome back</CardTitle>
+    <main className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-background via-background to-accent/5">
+      <Card className="w-full max-w-md shadow-lg animate-scale-in">
+        <CardHeader className="text-center space-y-2">
+          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
           <CardDescription>Sign in to your BrandOS account</CardDescription>
         </CardHeader>
         <CardContent>
@@ -69,7 +69,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="pl-10"
+                  className="pl-10 h-11"
                   required
                   autoComplete="email"
                   disabled={isLoading}
@@ -88,7 +88,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="pl-10 pr-10"
+                  className="pl-10 pr-10 h-11"
                   required
                   autoComplete="current-password"
                   disabled={isLoading}
@@ -97,7 +97,7 @@ export default function LoginPage() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-2 top-1/2 -translate-y-1/2"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 hover:bg-accent/80 transition-colors"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
@@ -105,7 +105,7 @@ export default function LoginPage() {
                 </Button>
               </div>
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full h-11 shadow-md hover:shadow-lg transition-shadow" disabled={isLoading}>
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
@@ -113,7 +113,7 @@ export default function LoginPage() {
         <CardFooter className="flex flex-col gap-4">
           <p className="text-sm text-center text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link href={`/register?redirect=${encodeURIComponent(redirect)}`} className="text-primary hover:underline">
+            <Link href={`/register?redirect=${encodeURIComponent(redirect)}`} className="text-primary hover:underline font-medium">
               Sign up
             </Link>
           </p>

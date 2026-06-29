@@ -149,6 +149,17 @@ export async function apiPatch<T, B = unknown>(
   return handleResponse<T>(response);
 }
 
+export async function apiPut<T, B = unknown>(
+  path: string,
+  body?: B
+): Promise<T> {
+  const response = await fetchWithAuth(path, {
+    method: "PUT",
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return handleResponse<T>(response);
+}
+
 export async function apiDelete(path: string): Promise<void> {
   const response = await fetchWithAuth(path, { method: "DELETE" });
   if (!response.ok) {

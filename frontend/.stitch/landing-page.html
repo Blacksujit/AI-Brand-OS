@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BrandOS | The AI Personal Brand Operating System</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#131315",
+                        "outline-variant": "#353437",
+                        "primary-container": "#e2e2e2",
+                        "primary": "#ffffff",
+                        "outline": "#444748",
+                        "surface-container": "#1c1b1d",
+                        "surface-container-low": "#161618",
+                        "on-surface": "#e5e1e4",
+                        "secondary": "#c0c1ff",
+                        "on-background": "#e5e1e4",
+                        "background": "#0e0e10"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter", "sans-serif"],
+                        "code": ["JetBrains Mono", "monospace"],
+                        "display": ["Inter", "sans-serif"],
+                        "headline-lg": ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0e0e10;
+            color: #e5e1e4;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-panel {
+            background: rgba(25, 25, 28, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(68, 71, 72, 0.5);
+        }
+        .code-font { font-family: 'JetBrains Mono', monospace; }
+        .gradient-text {
+            background: linear-gradient(180deg, #FFFFFF 0%, #A1A1AA 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .status-dot {
+            height: 6px;
+            width: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .grid-pattern {
+            background-image: radial-gradient(circle, #333 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+    </style>
+</head>
+<body class="bg-background">
+<!-- Header / Navigation -->
+<header class="fixed top-0 w-full z-50 border-b border-outline-variant bg-background/80 backdrop-blur-md">
+<div class="max-w-container-max mx-auto px-6 h-16 flex items-center justify-between">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-2">
+<div class="size-6 bg-white flex items-center justify-center rounded-sm">
+<svg class="size-4 text-black" fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M6 6H42L36 24L42 42H6L12 24L6 6Z" fill="currentColor"></path>
+</svg>
+</div>
+<span class="font-bold tracking-tight text-lg">BrandOS</span>
+</div>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-sm font-medium text-on-surface-variant hover:text-white transition-colors" href="#">Platform</a>
+<a class="text-sm font-medium text-on-surface-variant hover:text-white transition-colors" href="#">Workflow</a>
+<a class="text-sm font-medium text-on-surface-variant hover:text-white transition-colors" href="#">Security</a>
+<a class="text-sm font-medium text-on-surface-variant hover:text-white transition-colors" href="#">Pricing</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="hidden sm:block text-sm font-medium px-4 py-2 hover:bg-surface-variant rounded transition-colors">Log in</button>
+<button class="bg-white text-black text-sm font-bold px-4 py-2 rounded hover:bg-zinc-200 transition-all">Get Started</button>
+</div>
+</div>
+</header>
+<main class="pt-16">
+<!-- Hero Section -->
+<section class="relative pt-24 pb-20 px-6 overflow-hidden">
+<div class="absolute inset-0 grid-pattern opacity-20 pointer-events-none"></div>
+<div class="max-w-[800px] mx-auto text-center relative z-10">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-outline-variant bg-surface-container-low text-xs font-medium mb-8">
+<span class="flex h-2 w-2 rounded-full bg-secondary animate-pulse"></span>
+                    Now integrated with GitHub Actions &amp; Slack
+                </div>
+<h1 class="text-5xl md:text-7xl font-bold tracking-tight gradient-text mb-6">
+                    Turn today's work into tomorrow's reputation.
+                </h1>
+<p class="text-lg md:text-xl text-on-surface-variant mb-10 max-w-[640px] mx-auto leading-relaxed">
+                    The AI Personal Brand Operating System for technical professionals. Not a ghostwriter—a knowledge engine that learns from your real engineering work.
+                </p>
+<div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+<button class="w-full sm:w-auto px-8 py-4 bg-white text-black font-bold rounded-lg hover:scale-105 transition-transform">
+                        Start Building Your AI Brand
+                    </button>
+<button class="w-full sm:w-auto px-8 py-4 border border-outline-variant bg-surface-container-low font-bold rounded-lg flex items-center justify-center gap-2 hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-xl" data-icon="play_circle">play_circle</span>
+                        Watch the demo
+                    </button>
+</div>
+<div class="flex flex-col items-center gap-4">
+<p class="text-sm text-outline font-medium tracking-wide">TRUSTED BY 5,000+ ENGINEERS AT</p>
+<div class="flex flex-wrap justify-center gap-8 opacity-50 grayscale">
+<span class="font-bold text-xl tracking-tighter">VERCEL</span>
+<span class="font-bold text-xl tracking-tighter">LINEAR</span>
+<span class="font-bold text-xl tracking-tighter">STRIPE</span>
+<span class="font-bold text-xl tracking-tighter">RAILWAY</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Product Preview (Dashboard Mockup) -->
+<section class="px-6 pb-32">
+<div class="max-w-container-max mx-auto">
+<div class="glass-panel rounded-xl overflow-hidden shadow-2xl border border-outline-variant">
+<!-- Top Bar -->
+<div class="bg-surface-container border-b border-outline-variant px-6 py-3 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="flex gap-1.5">
+<div class="size-3 rounded-full bg-zinc-700"></div>
+<div class="size-3 rounded-full bg-zinc-700"></div>
+<div class="size-3 rounded-full bg-zinc-700"></div>
+</div>
+<div class="h-4 w-px bg-outline-variant mx-2"></div>
+<div class="flex items-center gap-2 text-xs text-outline font-code">
+<span class="material-symbols-outlined text-sm" data-icon="folder">folder</span>
+                                projects / brand-engine / dashboard
+                            </div>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-xs text-secondary font-code bg-secondary/10 px-2 py-0.5 rounded">Syncing...</span>
+<div class="size-8 rounded-full bg-zinc-800 border border-outline-variant" data-alt="A clean, professional headshot of a software engineer looking at the camera with a neutral expression, dark studio background, high contrast lighting, black and white aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBWNrqIXw-i6ByWW2hynsSja3Dg5GsJsdr3JxF3Y0qOYmAsEpYeIUejV4sjNqet9ogyDrZG9YlLZx902mKTQmx7DZ59zjX58inoDKs3I4SSibZ3A8O9P6jyv4AQmaJpvoZJVJiQTKI2uispyC92Lg62DjFQV-OReV11iP8lSFZzE7_eiNHYO9XZ5ge1KH5wOdQoeMM3jorfrtEafcxf2Urc8xUk_3bt_UfSqP4M_SIPF-vJUKPEqLt8bmXm2hCx_EkDJa5nNFFU-bQ')"></div>
+</div>
+</div>
+<div class="grid grid-cols-12 min-h-[600px]">
+<!-- Sidebar -->
+<aside class="col-span-3 border-r border-outline-variant bg-surface-container-low p-6">
+<div class="mb-8">
+<p class="text-[10px] font-bold text-outline uppercase tracking-widest mb-4">Knowledge Sources</p>
+<ul class="space-y-3">
+<li class="flex items-center gap-3 text-sm text-white bg-surface-variant p-2 rounded border border-outline-variant">
+<span class="material-symbols-outlined text-lg" data-icon="terminal">terminal</span>
+                                        GitHub: repo/main
+                                    </li>
+<li class="flex items-center gap-3 text-sm text-on-surface-variant p-2 hover:bg-surface-container transition-colors rounded">
+<span class="material-symbols-outlined text-lg" data-icon="description">description</span>
+                                        Notion: Engineering
+                                    </li>
+<li class="flex items-center gap-3 text-sm text-on-surface-variant p-2 hover:bg-surface-container transition-colors rounded">
+<span class="material-symbols-outlined text-lg" data-icon="forum">forum</span>
+                                        Slack: #eng-design
+                                    </li>
+</ul>
+</div>
+<div>
+<p class="text-[10px] font-bold text-outline uppercase tracking-widest mb-4">Content Ideas</p>
+<div class="space-y-4">
+<div class="p-3 bg-background border border-outline-variant rounded">
+<p class="text-xs font-medium text-white mb-1">React Server Components</p>
+<div class="h-1 w-full bg-zinc-800 rounded-full overflow-hidden">
+<div class="h-full w-4/5 bg-secondary"></div>
+</div>
+</div>
+<div class="p-3 bg-background border border-outline-variant rounded">
+<p class="text-xs font-medium text-white mb-1">Postgres Indexing Strategy</p>
+<div class="h-1 w-full bg-zinc-800 rounded-full overflow-hidden">
+<div class="h-full w-2/3 bg-secondary"></div>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="col-span-9 p-8 flex flex-col gap-6">
+<div class="flex items-end justify-between">
+<div>
+<h2 class="text-2xl font-bold mb-1">Draft: Edge Runtime Optimization</h2>
+<p class="text-sm text-on-surface-variant">Synthesized from 4 PRs and 1 Architectural Decision Record</p>
+</div>
+<div class="flex gap-2">
+<button class="px-4 py-2 text-xs font-bold border border-outline-variant rounded hover:bg-surface-variant">Edit Prompt</button>
+<button class="px-4 py-2 text-xs font-bold bg-white text-black rounded hover:bg-zinc-200">Approve &amp; Queue</button>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-6 flex-1">
+<!-- Editor Area -->
+<div class="col-span-2 glass-panel p-6 rounded-lg border border-outline-variant flex flex-col gap-4">
+<div class="flex items-center justify-between pb-4 border-b border-outline-variant">
+<span class="text-xs font-code text-outline uppercase tracking-wider">AI Suggestion</span>
+<span class="flex items-center gap-1.5 text-xs text-green-400">
+<span class="status-dot bg-green-400"></span>
+                                            High Authenticity
+                                        </span>
+</div>
+<div class="text-sm leading-relaxed text-on-surface font-body-md whitespace-pre-wrap">
+Last week we moved our auth middleware to the edge. The cold start latency was killing our LCP.
+
+The fix wasn't caching—it was moving the logic to a WASM module. Here's why most "edge ready" libraries still fail under load...
+
+[Insert code snippet showing the fetch interceptor pattern]
+
+1. Shared state is your enemy.
+2. Binary protocols outperform JSON at scale.
+3. Cold starts are actually bundle size problems in disguise.
+                                    </div>
+</div>
+<!-- Intelligence Panel -->
+<div class="col-span-1 flex flex-col gap-4">
+<div class="bg-surface-container rounded-lg p-5 border border-outline-variant">
+<h3 class="text-xs font-bold uppercase tracking-widest text-outline mb-4">Quality Score</h3>
+<div class="flex items-center gap-4 mb-4">
+<div class="text-4xl font-black text-white">94</div>
+<div class="text-[10px] text-on-surface-variant font-medium">Top 5% for<br/>Technical Depth</div>
+</div>
+<div class="space-y-3">
+<div class="flex justify-between text-xs">
+<span class="text-outline">Clarity</span>
+<span class="text-white">98%</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-outline">Unique Insights</span>
+<span class="text-white">91%</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-outline">Personal Tone</span>
+<span class="text-white">92%</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-container rounded-lg p-5 border border-outline-variant">
+<h3 class="text-xs font-bold uppercase tracking-widest text-outline mb-3">Refinement Loop</h3>
+<div class="space-y-3">
+<button class="w-full text-left p-2 rounded hover:bg-surface-variant text-xs flex items-center justify-between group transition-all">
+<span>Add more code context</span>
+<span class="material-symbols-outlined text-sm opacity-0 group-hover:opacity-100" data-icon="chevron_right">chevron_right</span>
+</button>
+<button class="w-full text-left p-2 rounded hover:bg-surface-variant text-xs flex items-center justify-between group transition-all">
+<span>Explain the 'Why' deeper</span>
+<span class="material-symbols-outlined text-sm opacity-0 group-hover:opacity-100" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</div>
+</section>
+<!-- Problem Section -->
+<section class="py-24 px-6 border-y border-outline-variant">
+<div class="max-w-container-max mx-auto grid md:grid-cols-2 gap-20 items-center">
+<div>
+<h2 class="text-4xl font-bold mb-6">Generic AI fails technical professionals.</h2>
+<p class="text-on-surface-variant text-lg mb-8 leading-relaxed">
+                        Most LinkedIn "AI tools" feel fake because they are just LLMs guessing based on generic trends. They don't know you, your code, or your unique perspective.
+                    </p>
+<div class="space-y-6">
+<div class="flex items-start gap-4">
+<div class="p-2 rounded bg-error-container text-error">
+<span class="material-symbols-outlined" data-icon="close">close</span>
+</div>
+<div>
+<h4 class="font-bold">The "Ghostwriter" Problem</h4>
+<p class="text-sm text-outline">Polished but empty posts that everyone scrolls past.</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<div class="p-2 rounded bg-error-container text-error">
+<span class="material-symbols-outlined" data-icon="close">close</span>
+</div>
+<div>
+<h4 class="font-bold">Missing Context</h4>
+<p class="text-sm text-outline">Generic AI doesn't know about that 3 AM bug fix that changed your perspective.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="relative aspect-square glass-panel rounded-2xl overflow-hidden border border-outline-variant p-1">
+<div class="w-full h-full rounded-xl bg-cover bg-center opacity-80" data-alt="A futuristic digital data visualization representing a complex neural network with glowing nodes and interconnecting lines, deep obsidian background, sharp white and soft grey accents, premium tech aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuARv8MDnIUeITIpMKNq94NcwacSQTatpT2txmynzNjK03ICTU6E_pV3zXVm5IftwS9SH0mgnBsdkGanys_enJlrw8HCrzx2m2zhUm-K9CY0JsEcuyXoe5rbW9z9JtQBVM2bBKNueki975lC5AKqB0Zk1l8s5loDglPBo_DCF0NJw_wQ4ia_MHBHSB48w5uUBDjUya22xdccg0s-pIVfRC7fXOlkKl50NhPmxUjyAhll2h-P6RWp0MISXfXcegJDsv56_Pfk-a3O6sI')"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="bg-black/80 backdrop-blur-md border border-white/10 p-6 rounded-lg text-center max-w-xs shadow-2xl">
+<span class="material-symbols-outlined text-white text-4xl mb-4" data-icon="verified">verified</span>
+<p class="text-sm font-medium">BrandOS connects to your real work to build authentic authority.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Workflow Section -->
+<section class="py-32 px-6">
+<div class="max-w-container-max mx-auto">
+<div class="text-center mb-20">
+<h2 class="text-4xl font-bold mb-4">Engineered for Authenticity</h2>
+<p class="text-on-surface-variant max-w-[600px] mx-auto">From raw data to industry authority in six automated steps.</p>
+</div>
+<div class="relative">
+<!-- Vertical Line -->
+<div class="absolute left-1/2 top-0 bottom-0 w-px bg-outline-variant -translate-x-1/2 hidden md:block"></div>
+<div class="space-y-24">
+<!-- Step 1 -->
+<div class="relative flex flex-col md:flex-row items-center gap-8 md:gap-0">
+<div class="md:w-1/2 md:pr-20 md:text-right">
+<h3 class="text-xl font-bold mb-2">Research</h3>
+<p class="text-sm text-on-surface-variant">We scan your connected repositories, documentation, and chat history for unique insights.</p>
+</div>
+<div class="absolute left-1/2 -translate-x-1/2 size-10 rounded-full bg-white text-black flex items-center justify-center font-bold z-10 hidden md:flex">1</div>
+<div class="md:w-1/2 md:pl-20">
+<div class="glass-panel p-4 rounded border border-outline-variant text-[10px] font-code text-on-surface-variant">
+                                    [SYSTEM] Scanning PR #421: "Implement Redis Cache"... <br/>
+                                    [SYSTEM] Found unique solution for race conditions...
+                                </div>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="relative flex flex-col md:flex-row-reverse items-center gap-8 md:gap-0">
+<div class="md:w-1/2 md:pl-20">
+<h3 class="text-xl font-bold mb-2">Knowledge Engine</h3>
+<p class="text-sm text-on-surface-variant">The AI maps your technical decisions into a structured knowledge graph that evolves over time.</p>
+</div>
+<div class="absolute left-1/2 -translate-x-1/2 size-10 rounded-full bg-background border border-outline-variant text-white flex items-center justify-center font-bold z-10 hidden md:flex">2</div>
+<div class="md:w-1/2 md:pr-20 md:text-right">
+<div class="h-24 w-full rounded border border-outline-variant bg-cover bg-center" data-alt="A sleek minimalist diagram showing interconnected abstract geometric shapes representing a knowledge graph, subtle blue and white neon outlines on a dark background, high-end software UI style." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDvZfKwqDyB4TzjrdLd2szSd8uUi-y-6Q1ym3aDg457dzJxrvE2TU59Gbrd_4QZkY5tgVlXnzRCWj9CmVL_WskTWmg2i5REbIoPFTANWi_hg4TbrRCFBR7cwOmYszPofwVvHseMkMef95z1BAt5ktSVfG4r6evowytOWwz8Kvkb2tCQCnFeRvNqRs33vKg8JfGLfiFtXcPno2zboH7a5En-eBn42FeEyUBhVBQjodZYblPMf1DlKsIJB71utUDcufYa5vROAfBNf-c')"></div>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="relative flex flex-col md:flex-row items-center gap-8 md:gap-0">
+<div class="md:w-1/2 md:pr-20 md:text-right">
+<h3 class="text-xl font-bold mb-2">Topic Selection</h3>
+<p class="text-sm text-on-surface-variant">We suggest high-impact topics based on what's trending in tech and what you've actually been working on.</p>
+</div>
+<div class="absolute left-1/2 -translate-x-1/2 size-10 rounded-full bg-background border border-outline-variant text-white flex items-center justify-center font-bold z-10 hidden md:flex">3</div>
+<div class="md:w-1/2 md:pl-20 flex gap-2">
+<div class="bg-surface-container border border-outline-variant px-3 py-1 rounded text-xs">Edge Computing</div>
+<div class="bg-surface-container border border-outline-variant px-3 py-1 rounded text-xs">Rust/WASM</div>
+<div class="bg-surface-container border border-outline-variant px-3 py-1 rounded text-xs">DX Strategy</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Feature Grid -->
+<section class="py-24 px-6 bg-surface-container-lowest">
+<div class="max-w-container-max mx-auto">
+<div class="grid md:grid-cols-3 gap-8">
+<div class="glass-panel p-8 rounded-xl border border-outline-variant">
+<div class="size-12 rounded bg-primary/10 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-white" data-icon="search_spark">search_spark</span>
+</div>
+<h3 class="text-xl font-bold mb-3">Research Today's AI</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed">
+                            Stop staring at a blank screen. We surface the most relevant technical topics from your own work history daily.
+                        </p>
+</div>
+<div class="glass-panel p-8 rounded-xl border border-outline-variant">
+<div class="size-12 rounded bg-primary/10 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-white" data-icon="auto_awesome">auto_awesome</span>
+</div>
+<h3 class="text-xl font-bold mb-3">Knowledge Engine</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed">
+                            Write from real experience. Our engine links your posts directly to code commits, ensuring technical accuracy every time.
+                        </p>
+</div>
+<div class="glass-panel p-8 rounded-xl border border-outline-variant">
+<div class="size-12 rounded bg-primary/10 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-white" data-icon="rate_review">rate_review</span>
+</div>
+<h3 class="text-xl font-bold mb-3">Review AI</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed">
+                            An automated editorial layer that improves clarity and originality while stripping away the generic "AI flavor."
+                        </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Security Section -->
+<section class="py-32 px-6">
+<div class="max-w-[1000px] mx-auto glass-panel p-12 rounded-2xl border border-outline-variant relative overflow-hidden">
+<div class="absolute top-0 right-0 p-8 opacity-10">
+<span class="material-symbols-outlined text-9xl" data-icon="security">security</span>
+</div>
+<div class="relative z-10">
+<h2 class="text-4xl font-bold mb-6">Privacy by Design.</h2>
+<p class="text-lg text-on-surface-variant mb-10 max-w-[600px]">
+                        Your knowledge base is yours. We use secure architecture to ensure your proprietary code and private documentation never leave your control.
+                    </p>
+<div class="grid sm:grid-cols-3 gap-8">
+<div>
+<h4 class="font-bold text-white mb-2">Local Knowledge</h4>
+<p class="text-sm text-outline">Vector embeddings are processed securely and never used for global model training.</p>
+</div>
+<div>
+<h4 class="font-bold text-white mb-2">Data Ownership</h4>
+<p class="text-sm text-outline">Export your entire knowledge graph at any time in open formats.</p>
+</div>
+<div>
+<h4 class="font-bold text-white mb-2">Enterprise Ready</h4>
+<p class="text-sm text-outline">SOC2 compliant infrastructure with SSO and role-based access.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Pricing Section -->
+<section class="py-24 px-6 border-t border-outline-variant">
+<div class="max-w-container-max mx-auto">
+<div class="text-center mb-20">
+<h2 class="text-4xl font-bold mb-4">Simple, transparent pricing.</h2>
+<p class="text-on-surface-variant">Choose the plan that fits your career stage.</p>
+</div>
+<div class="grid md:grid-cols-3 gap-8">
+<!-- Free -->
+<div class="border border-outline-variant p-8 rounded-xl flex flex-col">
+<p class="text-xs font-bold text-outline uppercase tracking-widest mb-4">Personal</p>
+<h3 class="text-4xl font-bold mb-2">$0 <span class="text-sm text-outline font-normal">/ month</span></h3>
+<p class="text-sm text-on-surface-variant mb-8">For individuals getting started with their technical brand.</p>
+<ul class="space-y-4 mb-8 flex-1">
+<li class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-green-400 text-lg" data-icon="check">check</span>
+                                1 Knowledge Source (GitHub)
+                            </li>
+<li class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-green-400 text-lg" data-icon="check">check</span>
+                                2 Drafts / Week
+                            </li>
+<li class="flex items-center gap-3 text-sm text-outline">
+<span class="material-symbols-outlined text-lg" data-icon="close">close</span>
+                                Custom Quality Scores
+                            </li>
+</ul>
+<button class="w-full py-3 border border-outline-variant rounded font-bold hover:bg-surface-variant transition-colors">Start Free</button>
+</div>
+<!-- Pro -->
+<div class="border-2 border-white p-8 rounded-xl flex flex-col relative scale-105 shadow-2xl bg-surface-container">
+<div class="absolute top-0 right-8 -translate-y-1/2 bg-white text-black text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider">Most Popular</div>
+<p class="text-xs font-bold text-outline uppercase tracking-widest mb-4">Professional</p>
+<h3 class="text-4xl font-bold mb-2">$49 <span class="text-sm text-outline font-normal">/ month</span></h3>
+<p class="text-sm text-on-surface-variant mb-8">For senior engineers and tech leaders building authority.</p>
+<ul class="space-y-4 mb-8 flex-1">
+<li class="flex items-center gap-3 text-sm font-bold">
+<span class="material-symbols-outlined text-green-400 text-lg" data-icon="check">check</span>
+                                Unlimited Knowledge Sources
+                            </li>
+<li class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-green-400 text-lg" data-icon="check">check</span>
+                                Daily Draft Generation
+                            </li>
+<li class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-green-400 text-lg" data-icon="check">check</span>
+                                Priority AI Review
+                            </li>
+<li class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-green-400 text-lg" data-icon="check">check</span>
+                                Multi-platform Publishing
+                            </li>
+</ul>
+<button class="w-full py-3 bg-white text-black rounded font-bold hover:bg-zinc-200 transition-colors">Go Pro</button>
+</div>
+<!-- Team -->
+<div class="border border-outline-variant p-8 rounded-xl flex flex-col">
+<p class="text-xs font-bold text-outline uppercase tracking-widest mb-4">Teams</p>
+<h3 class="text-4xl font-bold mb-2">$199 <span class="text-sm text-outline font-normal">/ month</span></h3>
+<p class="text-sm text-on-surface-variant mb-8">For DevRel teams and engineering departments.</p>
+<ul class="space-y-4 mb-8 flex-1">
+<li class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-green-400 text-lg" data-icon="check">check</span>
+                                Shared Knowledge Graph
+                            </li>
+<li class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-green-400 text-lg" data-icon="check">check</span>
+                                Collaborative Review
+                            </li>
+<li class="flex items-center gap-3 text-sm">
+<span class="material-symbols-outlined text-green-400 text-lg" data-icon="check">check</span>
+                                Brand Guidelines Lock
+                            </li>
+</ul>
+<button class="w-full py-3 border border-outline-variant rounded font-bold hover:bg-surface-variant transition-colors">Contact Sales</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Final CTA -->
+<section class="py-32 px-6">
+<div class="max-w-[800px] mx-auto text-center">
+<h2 class="text-5xl font-bold mb-8 gradient-text">Your reputation doesn't build itself. Start today.</h2>
+<div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+<button class="w-full sm:w-auto px-10 py-5 bg-white text-black font-black text-lg rounded-lg hover:scale-105 transition-transform shadow-[0_0_50px_rgba(255,255,255,0.1)]">
+                        Get Started for Free
+                    </button>
+<button class="w-full sm:w-auto px-10 py-5 border border-outline-variant rounded-lg font-bold text-lg hover:bg-surface-variant transition-colors">
+                        Book a Workshop
+                    </button>
+</div>
+<p class="mt-8 text-sm text-outline">No credit card required. Cancel anytime.</p>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="border-t border-outline-variant py-16 px-6 bg-background">
+<div class="max-w-container-max mx-auto grid md:grid-cols-4 gap-12 mb-16">
+<div class="col-span-1">
+<div class="flex items-center gap-2 mb-6">
+<div class="size-5 bg-white flex items-center justify-center rounded-sm">
+<svg class="size-3 text-black" fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M6 6H42L36 24L42 42H6L12 24L6 6Z" fill="currentColor"></path>
+</svg>
+</div>
+<span class="font-bold text-lg">BrandOS</span>
+</div>
+<p class="text-sm text-on-surface-variant leading-relaxed">
+                    Elevating technical expertise through AI-powered knowledge synthesis.
+                </p>
+</div>
+<div>
+<h5 class="text-sm font-bold mb-6">Product</h5>
+<ul class="space-y-4 text-sm text-on-surface-variant">
+<li><a class="hover:text-white transition-colors" href="#">Features</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Integrations</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Security</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Roadmap</a></li>
+</ul>
+</div>
+<div>
+<h5 class="text-sm font-bold mb-6">Resources</h5>
+<ul class="space-y-4 text-sm text-on-surface-variant">
+<li><a class="hover:text-white transition-colors" href="#">Documentation</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Case Studies</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Community</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Guides</a></li>
+</ul>
+</div>
+<div>
+<h5 class="text-sm font-bold mb-6">Company</h5>
+<ul class="space-y-4 text-sm text-on-surface-variant">
+<li><a class="hover:text-white transition-colors" href="#">About</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Careers</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Contact</a></li>
+<li><a class="hover:text-white transition-colors" href="#">Terms</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-container-max mx-auto flex flex-col md:flex-row justify-between items-center gap-4 border-t border-outline-variant pt-8">
+<p class="text-xs text-outline">© 2024 BrandOS Inc. Built for technical excellence.</p>
+<div class="flex gap-6">
+<a class="text-outline hover:text-white transition-colors" href="#">
+<svg class="size-5" fill="currentColor" viewbox="0 0 24 24"><path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"></path></svg>
+</a>
+<a class="text-outline hover:text-white transition-colors" href="#">
+<svg class="size-5" fill="currentColor" viewbox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.042-1.416-4.042-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path></svg>
+</a>
+</div>
+</div>
+</footer>
+<script>
+        // Simple intersection observer for reveal animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('opacity-100', 'translate-y-0');
+                    entry.target.classList.remove('opacity-0', 'translate-y-8');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('section').forEach(section => {
+            section.classList.add('transition-all', 'duration-700', 'opacity-0', 'translate-y-8');
+            observer.observe(section);
+        });
+
+        // Dashboard mock interaction
+        const editorText = document.querySelector('.whitespace-pre-wrap');
+        if (editorText) {
+            editorText.addEventListener('click', () => {
+                const colors = ['#c0c1ff', '#ffffff', '#a1a1aa'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                editorText.style.borderColor = randomColor;
+            });
+        }
+    </script>
+</body></html>

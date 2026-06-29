@@ -50,15 +50,15 @@ export interface GeneratedPost {
   id: string;
   title: string;
   body: string;
-  hook?: string;
-  call_to_action?: string;
+  hook: string | null;
+  call_to_action: string | null;
   hashtags: string[];
-  quality_score?: number;
-  review_feedback?: string;
-  status: string;
+  quality_score: number | null;
+  review_feedback: string | null;
+  status: "draft" | "published" | "archived";
   platform: string;
   created_at: string;
-  published_at?: string;
+  published_at: string | null;
 }
 
 export interface HistoryResponse {

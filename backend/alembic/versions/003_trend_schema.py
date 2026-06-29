@@ -10,8 +10,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision = "003_trend_schema"
-down_revision = "002_style_schema"
+revision = "003"
+down_revision = "002"
 branch_labels = None
 depends_on = None
 

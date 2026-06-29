@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type EvaluateRequest,
+  type GeneratedPost,
   type HistoryResponse,
   type PipelineRequest,
   type PipelineStatus,
@@ -57,7 +58,7 @@ export function useContentHistory(params: {
 }
 
 export function useContentRecord(recordId: string | undefined) {
-  return useQuery({
+  return useQuery<GeneratedPost>({
     queryKey: ["content-record", recordId],
     queryFn: () => getHistoryRecord(recordId!),
     enabled: !!recordId,
@@ -77,6 +78,34 @@ export function useUpdateRecordStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["content-history"] });
     },
+  });
+}
+
+// ─── Briefs ──────────────────────────────────────────────────────────────────
+
+export function useBriefs(params?: { limit?: number }) {
+  return useQuery({
+    queryKey: ["briefs", params],
+    queryFn: async () => {
+      // Generate brief ideas on-the-fly. Falls back gracefully if not supported.
+      try {
+        const ideas = await generateIdeas({ count: params?.limit ?? 5 });
+        return ideas.length > 0
+          ? [
+              {
+                id: "today",
+                title: "Today's Content Brief",
+                ideas,
+                created_at: new Date().toISOString(),
+              },
+            ]
+          : [];
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 5 * 60_000,
+    retry: false,
   });
 }
 

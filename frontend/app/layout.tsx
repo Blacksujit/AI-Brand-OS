@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Sofia_Sans } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { ThemeScript } from "@/components/theme/ThemeScript";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const sofiaSans = Sofia_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sofia-sans",
+});
 
 export const metadata: Metadata = {
   title: "BrandOS — AI Content Engine",
@@ -17,11 +23,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
-      <body className={inter.className}>
-        <Providers>
-          <ErrorBoundary>{children}</ErrorBoundary>
-        </Providers>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
+      <body className={sofiaSans.className}>
+        <ThemeProvider>
+          <Providers>
+            <ErrorBoundary>{children}</ErrorBoundary>
+          </Providers>
+        </ThemeProvider>
       </body>
     </html>
   );

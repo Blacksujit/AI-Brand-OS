@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "./client";
+import { apiGet, apiPost, apiPut, apiDelete } from "./client";
 
 export interface KnowledgeEntry {
   id: string;
@@ -61,6 +61,26 @@ export async function addKnowledgeEntry(
   request: AddKnowledgeRequest,
 ): Promise<KnowledgeEntry> {
   return apiPost<KnowledgeEntry>("/knowledge/entries", request);
+}
+
+export interface UpdateKnowledgeRequest {
+  title?: string;
+  content?: string;
+  summary?: string;
+  source_type?: string;
+  source_id?: string;
+  tags?: string[];
+}
+
+export async function updateKnowledgeEntry(
+  entryId: string,
+  request: UpdateKnowledgeRequest,
+): Promise<KnowledgeEntry> {
+  return apiPut<KnowledgeEntry>(`/knowledge/entries/${entryId}`, request);
+}
+
+export async function deleteKnowledgeEntry(entryId: string): Promise<void> {
+  return apiDelete(`/knowledge/entries/${entryId}`);
 }
 
 export async function getKnowledgeTags(): Promise<

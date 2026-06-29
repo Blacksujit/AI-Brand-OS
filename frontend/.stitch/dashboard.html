@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BrandOS Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@300;400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        body {
+            background-color: #141413;
+            color: #F3F0EE;
+            font-family: 'Sofia Sans', sans-serif;
+            overflow-x: hidden;
+        }
+        .orbital-line {
+            position: absolute;
+            border: 1px solid rgba(243, 115, 56, 0.15);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .glass-pill {
+            background: rgba(26, 26, 25, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #141413;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #353533;
+            border-radius: 10px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#353533",
+                        "surface-bright": "#3a3938",
+                        "inverse-on-surface": "#31302f",
+                        "canvas-cream": "#F3F0EE",
+                        "on-secondary": "#591d00",
+                        "secondary-fixed": "#ffdbcd",
+                        "on-secondary-fixed": "#360f00",
+                        "on-primary-fixed": "#380d00",
+                        "tertiary-container": "#757473",
+                        "on-secondary-container": "#ffd3c2",
+                        "link-blue": "#3860BE",
+                        "on-tertiary-fixed": "#1c1c1b",
+                        "tertiary": "#c8c6c4",
+                        "secondary": "#ffb598",
+                        "on-surface-variant": "#e2bfb3",
+                        "surface-charcoal": "#1A1A19",
+                        "signal-orange": "#CF4500",
+                        "tertiary-fixed": "#e5e2e0",
+                        "error-container": "#93000a",
+                        "on-tertiary": "#31302f",
+                        "primary": "#ffb59b",
+                        "clay-brown": "#9A3A0A",
+                        "error": "#ffb4ab",
+                        "inverse-primary": "#aa3700",
+                        "surface-container-lowest": "#0e0e0d",
+                        "outline-variant": "#5a4139",
+                        "on-secondary-fixed-variant": "#7e2c00",
+                        "surface-container-high": "#2a2a29",
+                        "surface-tint": "#ffb59b",
+                        "on-background": "#e5e2e0",
+                        "on-surface": "#e5e2e0",
+                        "on-error": "#690005",
+                        "primary-fixed": "#ffdbcf",
+                        "primary-fixed-dim": "#ffb59b",
+                        "tertiary-fixed-dim": "#c8c6c4",
+                        "outline": "#a98a7f",
+                        "light-signal-orange": "#F37338",
+                        "surface-dim": "#131312",
+                        "on-primary-fixed-variant": "#822800",
+                        "secondary-container": "#a93e00",
+                        "surface": "#131312",
+                        "secondary-fixed-dim": "#ffb598",
+                        "on-primary-container": "#fffbff",
+                        "primary-container": "#cf4500",
+                        "surface-container": "#20201e",
+                        "ink-black": "#141413",
+                        "on-tertiary-fixed-variant": "#474745",
+                        "surface-container-low": "#1c1c1a",
+                        "surface-container-highest": "#353533",
+                        "on-primary": "#5c1a00",
+                        "on-tertiary-container": "#fffbf9",
+                        "background": "#131312",
+                        "on-error-container": "#ffdad6",
+                        "inverse-surface": "#e5e2e0"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "16px",
+                        "gutter": "24px",
+                        "unit": "8px",
+                        "xs": "8px",
+                        "lg": "32px",
+                        "container-max": "1200px",
+                        "xl": "64px",
+                        "section-desktop": "96px",
+                        "md": "24px",
+                        "section-mobile": "48px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Sofia Sans"],
+                        "label-caps": ["Sofia Sans"],
+                        "body-md": ["Sofia Sans"],
+                        "button": ["Sofia Sans"],
+                        "display-hero-mobile": ["Sofia Sans"],
+                        "headline-md": ["Sofia Sans"],
+                        "footer-link": ["Sofia Sans"],
+                        "display-hero": ["Sofia Sans"],
+                        "body-lg": ["Sofia Sans"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.72px", "fontWeight": "500" }],
+                        "label-caps": ["14px", { "lineHeight": "14px", "letterSpacing": "0.56px", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "22.4px", "fontWeight": "450" }],
+                        "button": ["16px", { "lineHeight": "16px", "letterSpacing": "-0.48px", "fontWeight": "500" }],
+                        "display-hero-mobile": ["40px", { "lineHeight": "44px", "letterSpacing": "-0.8px", "fontWeight": "500" }],
+                        "headline-md": ["24px", { "lineHeight": "28.8px", "letterSpacing": "-0.48px", "fontWeight": "500" }],
+                        "footer-link": ["14px", { "lineHeight": "20px", "fontWeight": "450" }],
+                        "display-hero": ["64px", { "lineHeight": "64px", "letterSpacing": "-1.28px", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "25.2px", "fontWeight": "450" }]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-ink-black text-canvas-cream selection:bg-signal-orange selection:text-white">
+<!-- Orbital Background Elements -->
+<div class="orbital-line w-[800px] h-[800px] -top-96 -left-96"></div>
+<div class="orbital-line w-[600px] h-[600px] top-1/2 -right-64"></div>
+<!-- SideNavBar Shell -->
+<aside class="fixed left-0 top-0 h-full w-64 flex flex-col py-lg z-40 bg-surface-charcoal shadow-xl border-r border-white/5">
+<div class="px-gutter mb-xl">
+<h1 class="font-headline-md text-headline-md text-canvas-cream font-bold tracking-tighter">BrandOS</h1>
+<p class="font-label-caps text-[10px] text-tertiary-container mt-1 uppercase tracking-widest">Technical personal brand OS</p>
+</div>
+<nav class="flex-1 px-4 space-y-2">
+<!-- Active: Dashboard -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-signal-orange border-r-2 border-signal-orange bg-surface-container-high transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-label-caps text-label-caps">Briefs</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">edit_note</span>
+<span class="font-label-caps text-label-caps">Content</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">auto_stories</span>
+<span class="font-label-caps text-label-caps">Knowledge</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-label-caps text-label-caps">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">trending_up</span>
+<span class="font-label-caps text-label-caps">Trends</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">palette</span>
+<span class="font-label-caps text-label-caps">Style</span>
+</a>
+</nav>
+<div class="px-4 mt-auto space-y-4">
+<button class="w-full bg-signal-orange text-canvas-cream py-3 rounded-[20px] font-button text-button flex items-center justify-center gap-2 hover:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined text-sm">add</span>
+                New Brief
+            </button>
+<div class="pt-4 border-t border-white/5 space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-canvas-cream transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">hub</span>
+<span class="font-footer-link text-footer-link">Connections</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-canvas-cream transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="font-footer-link text-footer-link">Settings</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- Main Wrapper -->
+<main class="ml-64 min-h-screen flex flex-col relative z-10">
+<!-- TopNavBar Shell -->
+<header class="flex justify-between items-center h-16 px-gutter w-[calc(100%-16rem)] fixed top-0 z-50 bg-ink-black border-b border-surface-variant backdrop-blur-md bg-opacity-80">
+<div class="flex items-center gap-gutter flex-1">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-xl">search</span>
+<input class="w-full bg-surface-charcoal border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-1 focus:ring-signal-orange transition-all placeholder:text-tertiary-container" placeholder="Search system assets..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-signal-orange animate-pulse"></span>
+<span class="font-label-caps text-[10px] text-tertiary-container uppercase tracking-widest">System Active</span>
+</div>
+<button class="text-on-surface-variant hover:text-signal-orange transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-white/10">
+<img class="w-full h-full object-cover" data-alt="A professional, high-contrast studio portrait of a modern tech executive with neutral expression, soft rim lighting, set against a deep charcoal background to match the BrandOS aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnXmxWftHLulPfZQp84ro61UuhvgYm9YjIG2gdjTeIqY3AVig5cHyS8JhYehpky4pdYLU9hSuFqxATA8njfyijGJd0VftMxkxpqLVvUp0AVtj4PyZewG2MoL6YN0YDrbLURPe2an-lHzqrE4WyTKWebhjTYxP5oJ9YdzkVzZvHtPu5AUhkeH-ma7SaxTrcvXk2Q9ACIntb_Yz_0EUiCbEOiWaW8W7qq-UMgaQqoB9L7GtSPWMgcmUf2D9paVURjJiIGH8JxqbtDik"/>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="mt-16 p-xl flex-1 max-w-[1400px] mx-auto w-full space-y-xl">
+<!-- Daily Brief Section -->
+<section class="relative">
+<div class="flex items-center gap-2 mb-gutter">
+<span class="w-2 h-2 rounded-full bg-signal-orange"></span>
+<h2 class="font-label-caps text-label-caps uppercase text-tertiary-container">System Insight</h2>
+</div>
+<div class="bg-surface-charcoal rounded-[40px] p-xl flex flex-col md:flex-row items-center justify-between gap-xl overflow-hidden relative group">
+<div class="absolute -right-24 -top-24 w-64 h-64 bg-signal-orange/10 blur-[100px] rounded-full"></div>
+<div class="relative z-10 max-w-2xl">
+<p class="font-headline-lg text-headline-lg leading-tight">
+                            Turn your work on <span class="text-signal-orange">"Distributed Systems"</span> into a high-authority thread.
+                        </p>
+<p class="font-body-md text-body-md text-tertiary-container mt-4">
+                            Our LLM analyzed your 4,000 word whitepaper. We've identified 7 viral hooks that align with your Style Guide.
+                        </p>
+</div>
+<div class="relative z-10 flex-shrink-0">
+<button class="bg-signal-orange text-canvas-cream px-xl py-lg rounded-[20px] font-button text-button hover:bg-light-signal-orange transition-all flex items-center gap-3 group shadow-lg shadow-signal-orange/20">
+                            Generate Draft
+                            <span class="material-symbols-outlined transition-transform group-hover:translate-x-1">arrow_forward</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Metrics Grid -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
+<div class="bg-surface-charcoal p-lg rounded-[20px] border border-white/5 hover:border-signal-orange/30 transition-all">
+<span class="font-label-caps text-[12px] text-tertiary-container uppercase block mb-4">Posts this week</span>
+<div class="flex items-end justify-between">
+<span class="font-display-hero text-[48px] leading-none font-bold">3</span>
+<div class="text-tertiary-container flex items-center text-sm">
+<span class="material-symbols-outlined text-sm">trending_flat</span>
+                            On Pace
+                        </div>
+</div>
+</div>
+<div class="bg-surface-charcoal p-lg rounded-[20px] border border-white/5 hover:border-signal-orange/30 transition-all">
+<span class="font-label-caps text-[12px] text-tertiary-container uppercase block mb-4">Engagement</span>
+<div class="flex items-end justify-between">
+<span class="font-display-hero text-[48px] leading-none font-bold text-signal-orange">+12%</span>
+<div class="text-signal-orange flex items-center text-sm">
+<span class="material-symbols-outlined text-sm">north_east</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-charcoal p-lg rounded-[20px] border border-white/5 hover:border-signal-orange/30 transition-all">
+<span class="font-label-caps text-[12px] text-tertiary-container uppercase block mb-4">Style Convergence</span>
+<div class="flex items-end justify-between">
+<span class="font-display-hero text-[48px] leading-none font-bold">84%</span>
+<div class="w-16 h-1.5 bg-surface-variant rounded-full overflow-hidden mb-3">
+<div class="h-full bg-signal-orange w-[84%]"></div>
+</div>
+</div>
+</div>
+<div class="bg-surface-charcoal p-lg rounded-[20px] border border-white/5 hover:border-signal-orange/30 transition-all">
+<span class="font-label-caps text-[12px] text-tertiary-container uppercase block mb-4">Ideas</span>
+<div class="flex items-end justify-between">
+<span class="font-display-hero text-[48px] leading-none font-bold">15</span>
+<button class="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">add</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Main Split Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-xl">
+<!-- Recent Content Table (Left/Center) -->
+<div class="lg:col-span-2 space-y-gutter">
+<div class="flex items-center justify-between">
+<h3 class="font-headline-md text-headline-md font-bold">Recent Content</h3>
+<a class="font-label-caps text-[12px] text-signal-orange hover:underline uppercase tracking-widest" href="#">View All Vault</a>
+</div>
+<div class="bg-surface-charcoal rounded-[20px] overflow-hidden border border-white/5">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-white/5 bg-surface-container-low/50">
+<th class="px-lg py-4 font-label-caps text-[11px] text-tertiary-container uppercase">Title</th>
+<th class="px-lg py-4 font-label-caps text-[11px] text-tertiary-container uppercase">Platform</th>
+<th class="px-lg py-4 font-label-caps text-[11px] text-tertiary-container uppercase">Status</th>
+<th class="px-lg py-4"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-white/5">
+<tr class="hover:bg-white/[0.02] transition-colors group">
+<td class="px-lg py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-sm text-tertiary">article</span>
+</div>
+<div>
+<p class="font-body-md text-sm font-medium">Scaling Multi-Region Databases</p>
+<p class="text-[12px] text-tertiary-container">Technical Article • 5m read</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-5 text-sm text-tertiary">LinkedIn, Substack</td>
+<td class="px-lg py-5">
+<span class="px-3 py-1 rounded-full bg-signal-orange/10 text-signal-orange text-[10px] font-bold uppercase tracking-wider border border-signal-orange/20">Drafting</span>
+</td>
+<td class="px-lg py-5 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="text-on-surface-variant hover:text-canvas-cream">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-white/[0.02] transition-colors group">
+<td class="px-lg py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-sm text-tertiary">movie_edit</span>
+</div>
+<div>
+<p class="font-body-md text-sm font-medium">Why I left FAANG for AI</p>
+<p class="text-[12px] text-tertiary-container">Short-form Video • 0:58s</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-5 text-sm text-tertiary">Twitter, X</td>
+<td class="px-lg py-5">
+<span class="px-3 py-1 rounded-full bg-green-500/10 text-green-500 text-[10px] font-bold uppercase tracking-wider border border-green-500/20">Published</span>
+</td>
+<td class="px-lg py-5 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="text-on-surface-variant hover:text-canvas-cream">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-white/[0.02] transition-colors group">
+<td class="px-lg py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-sm text-tertiary">auto_stories</span>
+</div>
+<div>
+<p class="font-body-md text-sm font-medium">Agentic RAG Workflows</p>
+<p class="text-[12px] text-tertiary-container">Educational Series • Part 1</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-5 text-sm text-tertiary">Personal Blog</td>
+<td class="px-lg py-5">
+<span class="px-3 py-1 rounded-full bg-clay-brown/20 text-secondary text-[10px] font-bold uppercase tracking-wider border border-secondary/20">Review</span>
+</td>
+<td class="px-lg py-5 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="text-on-surface-variant hover:text-canvas-cream">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Trending Topics Panel (Right) -->
+<div class="space-y-gutter">
+<h3 class="font-headline-md text-headline-md font-bold">Trending Topics</h3>
+<div class="bg-surface-charcoal rounded-[20px] p-lg border border-white/5 space-y-4">
+<div class="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-signal-orange/50 transition-all cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="font-label-caps text-signal-orange">01</span>
+<span class="font-body-md font-medium">LangGraph 101</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-sm">trending_up</span>
+</div>
+<div class="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-signal-orange/50 transition-all cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="font-label-caps text-signal-orange">02</span>
+<span class="font-body-md font-medium">Agentic Workflows</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-sm">trending_up</span>
+</div>
+<div class="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-signal-orange/50 transition-all cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="font-label-caps text-signal-orange">03</span>
+<span class="font-body-md font-medium">Local LLMs</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-sm">trending_up</span>
+</div>
+<div class="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-signal-orange/50 transition-all cursor-pointer">
+<div class="flex items-center gap-3">
+<span class="font-label-caps text-signal-orange">04</span>
+<span class="font-body-md font-medium">Vector DB Latency</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-sm">trending_flat</span>
+</div>
+<div class="pt-4 border-t border-white/5">
+<div class="bg-ink-black rounded-2xl p-4 relative overflow-hidden group">
+<div class="relative z-10">
+<p class="font-label-caps text-[10px] text-tertiary-container mb-2">PRO TIP</p>
+<p class="text-sm leading-relaxed">Network effects in "Agentic Workflows" are surging. Mentioning <strong>AutoGPT</strong> could increase reach by 40%.</p>
+</div>
+<div class="absolute inset-0 bg-signal-orange/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div>
+</div>
+</div>
+<!-- Decorative Orbital Card -->
+<div class="bg-signal-orange rounded-[20px] p-lg text-canvas-cream relative overflow-hidden group h-48 flex items-center justify-center">
+<div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent scale-150 group-hover:scale-100 transition-transform duration-1000"></div>
+<div class="relative z-10 text-center">
+<p class="font-headline-md font-bold mb-2">Upgrade Engine</p>
+<p class="font-label-caps text-[11px] opacity-80 mb-4">UNLOCK ADVANCED PREDICTIONS</p>
+<button class="bg-ink-black text-canvas-cream px-6 py-2 rounded-full font-button text-sm hover:scale-105 transition-transform">Get Pro</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Shell -->
+<footer class="flex justify-between items-center px-xl py-md w-full mt-auto bg-ink-black border-t border-surface-variant">
+<p class="font-footer-link text-footer-link text-tertiary-container">© 2024 BrandOS Technical. All rights reserved.</p>
+<div class="flex gap-lg">
+<a class="font-footer-link text-footer-link text-tertiary-container hover:text-canvas-cream transition-colors" href="#">Terms</a>
+<a class="font-footer-link text-footer-link text-tertiary-container hover:text-canvas-cream transition-colors" href="#">Privacy</a>
+<a class="font-footer-link text-footer-link text-tertiary-container hover:text-canvas-cream transition-colors" href="#">API</a>
+<a class="font-footer-link text-footer-link text-tertiary-container hover:text-canvas-cream transition-colors" href="#">Documentation</a>
+</div>
+</footer>
+</main>
+<!-- Contextual Floating FAB (Suppressed based on prompt as this is a Dashboard, but included as a small ghost element for UI completeness as a 'New Content' shortcut) -->
+<button class="fixed bottom-gutter right-gutter w-14 h-14 bg-signal-orange text-white rounded-full shadow-2xl flex items-center justify-center group hover:scale-110 active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined text-3xl">add</span>
+<span class="absolute right-16 bg-surface-charcoal text-canvas-cream px-4 py-2 rounded-xl border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none font-label-caps text-[12px]">Quick Post</span>
+</button>
+<script>
+        // Simple micro-interaction for cards
+        document.querySelectorAll('.bg-surface-charcoal').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0px)';
+            });
+            card.style.transition = 'transform 0.3s cubic-bezier(0.2, 0, 0, 1), border-color 0.3s ease';
+        });
+    </script>
+</body></html>

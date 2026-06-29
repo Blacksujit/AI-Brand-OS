@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useContentHistory, useUpdateRecordStatus } from "@/lib/api/hooks";
 import { QualityBadge } from "@/features/ui/QualityBadge";
 import { Button } from "@/features/ui/Button";
@@ -83,26 +84,28 @@ export default function HistoryPage() {
           {data.records.map((record) => (
             <div
               key={record.id}
-              className="rounded-lg border p-4 transition-colors hover:bg-muted/30"
+              className="rounded-lg border transition-colors hover:bg-muted/30"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-medium truncate">{record.title}</h3>
-                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                    {record.body}
-                  </p>
-                  <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="capitalize">{record.platform}</span>
-                    <span>{new Date(record.created_at).toLocaleDateString()}</span>
-                    {record.hook && <span>Has hook</span>}
-                    {record.call_to_action && <span>Has CTA</span>}
+              <Link href={`/app/history/${record.id}`} className="block p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-medium truncate">{record.title}</h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                      {record.body}
+                    </p>
+                    <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="capitalize">{record.platform}</span>
+                      <span>{new Date(record.created_at).toLocaleDateString()}</span>
+                      {record.hook && <span>Has hook</span>}
+                      {record.call_to_action && <span>Has CTA</span>}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <QualityBadge score={record.quality_score} />
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <QualityBadge score={record.quality_score} />
-                </div>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
+              </Link>
+              <div className="border-t px-4 pb-3 pt-3 flex items-center gap-2">
                 {record.status === "draft" && (
                   <>
                     <Button

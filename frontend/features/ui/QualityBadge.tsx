@@ -1,7 +1,7 @@
 "use client";
 
 interface QualityBadgeProps {
-  score?: number;
+  score?: number | null;
   className?: string;
 }
 

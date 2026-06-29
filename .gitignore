@@ -1,5 +1,7 @@
 .opencode/
 claude-skills/
+.claude
+.agents
 
 # Python
 __pycache__/

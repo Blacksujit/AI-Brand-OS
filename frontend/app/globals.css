@@ -4,71 +4,84 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Mastercard Design System Colors */
+    --background: 24 12% 94%; /* Canvas Cream #F3F0EE */
+    --foreground: 0 0% 8%; /* Ink Black #141413 */
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 0 0% 8%; /* Ink Black */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    --popover-foreground: 0 0% 8%;
+    --primary: 0 0% 8%; /* Ink Black #141413 */
+    --primary-foreground: 24 12% 94%; /* Canvas Cream */
+    --secondary: 0 0% 100%; /* White */
+    --secondary-foreground: 0 0% 8%; /* Ink Black */
+    --muted: 24 10% 96%; /* Lifted Cream #FCFBFA */
+    --muted-foreground: 0 0% 41%; /* Slate Gray #696969 */
+    --accent: 24 12% 94%; /* Canvas Cream */
+    --accent-foreground: 0 0% 8%; /* Ink Black */
+    --destructive: 14 100% 48%; /* Signal Orange #CF4500 */
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 8%; /* Ink Black at low opacity */
+    --input: 0 0% 8%;
+    --ring: 0 0% 8%;
+    --radius: 1.25rem; /* 20px for buttons */
+
+    /* Mastercard specific colors */
+    --signal-orange: 14 100% 48%; /* #CF4500 */
+    --light-signal-orange: 24 85% 58%; /* #F37338 */
+    --clay-brown: 18 95% 30%; /* #9A3A0A */
+    --link-blue: 221 50% 45%; /* #3860BE */
+    --dust-taupe: 30 15% 81%; /* #D1CDC7 */
+
+    /* Sidebar - light */
+    --sidebar-background: 0 0% 8%; /* Ink Black */
+    --sidebar-foreground: 24 12% 94%; /* Canvas Cream */
+    --sidebar-primary: 24 12% 94%; /* Canvas Cream */
+    --sidebar-primary-foreground: 0 0% 8%; /* Ink Black */
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 24 12% 94%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 24 12% 94%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --background: 0 0% 8%; /* Ink Black */
+    --foreground: 24 12% 94%; /* Canvas Cream */
+    --card: 0 0% 12%;
+    --card-foreground: 24 12% 94%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 24 12% 94%;
+    --primary: 24 12% 94%; /* Canvas Cream */
+    --primary-foreground: 0 0% 8%; /* Ink Black */
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 24 12% 94%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 24 8% 65%;
+    --accent: 0 0% 16%;
+    --accent-foreground: 24 12% 94%;
+    --destructive: 14 100% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 24 12% 94%;
+
+    /* Sidebar - dark */
+    --sidebar-background: 0 0% 4%;
+    --sidebar-foreground: 24 12% 94%;
+    --sidebar-primary: 24 12% 94%;
+    --sidebar-primary-foreground: 0 0% 8%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 24 12% 94%;
+    --sidebar-border: 0 0% 12%;
+    --sidebar-ring: 24 12% 94%;
   }
 
-  /* Sidebar custom properties */
-  .dark {
-    --sidebar-background: 222.2 84% 8%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217.2 91.2% 59.8%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217.2 32.6% 20%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
+  /* Layout tokens */
   :root {
-    --sidebar-background: 222.2 84% 8%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217.2 91.2% 59.8%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217.2 32.6% 20%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217.2 32.6% 17.5%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-width: 240px;
+    --sidebar-collapsed-width: 64px;
+    --header-height: 56px;
+    --content-max-width: 1200px;
   }
 }
 
@@ -78,6 +91,32 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    touch-action: manipulation;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  p, li {
+    line-height: 1.65;
+  }
+
+  p, span, li, a, button, input, textarea, label {
+    font-weight: 450;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -85,5 +124,50 @@
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.4s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 }

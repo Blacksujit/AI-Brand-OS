@@ -84,10 +84,10 @@ def upgrade() -> None:
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
+        sa.UniqueConstraint("user_id", "draft_id", name="uq_ratings_user_draft"),
     )
     op.create_index("idx_ratings_user", "style_ratings", ["user_id"])
     op.create_index("idx_ratings_draft", "style_ratings", ["draft_id"])
-    op.create_unique_constraint("uq_ratings_user_draft", "style_ratings", ["user_id", "draft_id"])
 
 
 def downgrade() -> None:

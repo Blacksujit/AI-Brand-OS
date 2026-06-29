@@ -62,11 +62,36 @@ const config: Config = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        "signal-orange": {
+          DEFAULT: "#CF4500",
+          light: "#F37338",
+        },
+        "canvas-cream": {
+          DEFAULT: "#F3F0EE",
+          lifted: "#FCFBFA",
+        },
+        "ink-black": {
+          DEFAULT: "#141413",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        pill: "999px",
+        stadium: "40px",
+        circle: "50%",
+      },
+      boxShadow: {
+        "mc-1": "0px 4px 24px 0px rgba(0, 0, 0, 0.04)",
+        "mc-2": "0px 24px 48px 0px rgba(0, 0, 0, 0.08)",
+      },
+      letterSpacing: {
+        "mc-heading": "-0.02em",
+        "mc-body": "-0.01em",
+      },
+      fontWeight: {
+        "mc-body": "450",
       },
       keyframes: {
         "accordion-down": {
