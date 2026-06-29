@@ -112,7 +112,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <p className="text-sm text-center text-muted-foreground">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link href={`/register?redirect=${encodeURIComponent(redirect)}`} className="text-primary hover:underline">
               Sign up
             </Link>

@@ -46,11 +46,9 @@ export default function ContentPage() {
 
       {stage === "form" ? (
         <ContentTabs
-          children={{
-            generate: <PipelineForm onPipelineStart={handlePipelineStart} />,
-            ideas: <IdeaList />,
-            evaluate: <EvaluateForm />,
-          }}
+          generateTab={<PipelineForm onPipelineStart={handlePipelineStart} />}
+          ideasTab={<IdeaList />}
+          evaluateTab={<EvaluateForm />}
         />
       ) : stage === "progress" && pipelineId ? (
         <div className="max-w-2xl mx-auto">

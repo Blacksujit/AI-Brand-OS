@@ -101,7 +101,7 @@ export function GeneratedContentView({ post, onRegenerate }: GeneratedContentVie
             <div className="space-y-4">
               <div>
                 <p className="text-2xl font-bold">{title}</p>
-                {hook && <p className="text-lg text-muted-foreground mt-2 italic">"{hook}"</p>}
+                {hook && <p className="text-lg text-muted-foreground mt-2 italic">&ldquo;{hook}&rdquo;</p>}
               </div>
               <div className="prose prose-sm max-w-none">{body.split("\n").map((p) => <p key={p}>{p}</p>)}</div>
               {cta && <p className="font-medium text-primary">{cta}</p>}
