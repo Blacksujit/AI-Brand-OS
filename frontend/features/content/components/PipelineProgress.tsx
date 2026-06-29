@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/features/ui/Card";
 import { Badge } from "@/features/ui/Badge";
 import { usePipelinePolling } from "@/lib/api/hooks";
-import { useGeneratedContent } from "@/features/content/hooks/useRegenerateContent";
 import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/features/ui/Button";
@@ -25,12 +23,10 @@ type StepId = typeof PIPELINE_STEPS[number]["id"];
 
 interface PipelineProgressProps {
   pipelineId: string;
-  onComplete: (output: import("@/lib/validators/content").GeneratedPost) => void;
 }
 
-export function PipelineProgress({ pipelineId, onComplete }: PipelineProgressProps) {
+export function PipelineProgress({ pipelineId }: PipelineProgressProps) {
   const { data, isLoading, error, refetch } = usePipelinePolling(pipelineId);
-  const { data: generatedContent } = useGeneratedContent(pipelineId);
 
   const getStepStatus = (stepId: StepId): "pending" | "running" | "complete" | "error" => {
     if (!data) return "pending";
@@ -44,8 +40,7 @@ export function PipelineProgress({ pipelineId, onComplete }: PipelineProgressPro
     return "pending";
   };
 
-  const getStepDuration = (stepId: StepId): number | undefined => {
-    // step_timing not yet in PipelineStatus schema
+  const getStepDuration = (_stepId: StepId): number | undefined => {
     return undefined;
   };
 
