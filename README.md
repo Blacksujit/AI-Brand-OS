@@ -294,7 +294,7 @@ brandos/
 ### Clone
 
 ```bash
-git clone https://github.com/your-org/brandos.git
+git clone https://github.com/Blacksujit/brandos.git
 cd brandos
 ```
 
