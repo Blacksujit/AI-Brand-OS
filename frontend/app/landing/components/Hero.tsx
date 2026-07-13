@@ -10,7 +10,8 @@ export function Hero() {
   const heroAnim = useEntrance("up");
 
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 pt-32 pb-20">
+    <section className="relative min-h-dvh flex flex-col items-center justify-center text-center pt-32 pb-20 lg:pt-56 lg:pb-28 px-6 overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle,#333_1px,transparent_1px)] opacity-10 pointer-events-none" style={{ backgroundSize: "24px 24px" }} />
       <motion.div
         {...heroAnim}
         transition={{ duration: 0.5 }}
@@ -20,19 +21,25 @@ export function Hero() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 mb-8"
+          className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-orange-500/20 bg-orange-500/5 mb-8"
         >
-          <span className="flex h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
-          <span className="text-xs font-medium text-orange-500">v2.0 Beta Now Open</span>
+          <span className="flex size-2 rounded-full bg-orange-500 animate-pulse" />
+          <span className="text-[10px] font-mono uppercase tracking-widest text-orange-500">v2.0 Beta Now Open</span>
         </motion.div>
 
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="text-5xl md:text-7xl font-bold tracking-tight mb-6"
+          className="text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-[1.05]"
         >
-          Turn today&apos;s work into tomorrow&apos;s reputation.
+          <span className="bg-gradient-to-b from-foreground to-muted-foreground bg-clip-text text-transparent">
+            Turn Today&apos;s Work into
+          </span>
+          <br />
+          <span className="text-muted-foreground/60">
+            Tomorrow&apos;s Reputation.
+          </span>
         </motion.h1>
 
         <motion.p
@@ -48,35 +55,20 @@ export function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12"
+          className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
-          <Button variant="default" size="lg" className="rounded-lg text-base px-10 font-bold bg-orange-500 hover:bg-orange-400 transition-all" asChild>
+          <Button variant="default" size="lg" className="group rounded-[20px] text-base px-10 py-5 font-bold shadow-[0_0_40px_-10px_#CF4500]" asChild>
             <Link href="/login">
               Start Building
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-150 group-hover:translate-x-1" />
             </Link>
           </Button>
-          <Button variant="outline" size="lg" className="rounded-lg text-base px-10 font-bold" asChild>
+          <Button variant="outline" size="lg" className="rounded-[20px] text-base px-10 py-5 font-bold" asChild>
             <Link href="#product-preview">
               <Play className="mr-2 h-4 w-4" />
-              Watch the demo
+              Watch Demo
             </Link>
           </Button>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="flex flex-col items-center gap-4"
-        >
-          <p className="text-xs font-medium tracking-wider text-muted-foreground">TRUSTED BY 5,000+ ENGINEERS AT</p>
-          <div className="flex flex-wrap justify-center gap-8 opacity-50 grayscale">
-            <span className="font-bold text-xl tracking-tighter">VERCEL</span>
-            <span className="font-bold text-xl tracking-tighter">LINEAR</span>
-            <span className="font-bold text-xl tracking-tighter">STRIPE</span>
-            <span className="font-bold text-xl tracking-tighter">RAILWAY</span>
-          </div>
         </motion.div>
       </motion.div>
     </section>

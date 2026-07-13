@@ -9,7 +9,7 @@ export function Security({ direction = "right" }: { direction?: Direction }) {
 
   return (
     <section id="security" className="py-32 px-6">
-      <div className="max-w-[1000px] mx-auto rounded-2xl border border-border/50 bg-muted/20 backdrop-blur-sm p-12 relative overflow-hidden">
+      <div className="max-w-[1000px] mx-auto rounded-stadium border border-border/20 bg-card/30 backdrop-blur-sm p-12 relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
           <Shield className="h-40 w-40 text-foreground" />
         </div>

@@ -23,8 +23,8 @@ const features = [
 
 export function FeatureGrid() {
   return (
-    <section id="features" className="py-24 px-6 bg-muted/10">
-      <div className="max-w-7xl mx-auto">
+    <section id="features" className="py-24 px-6 bg-card/20">
+      <div className="max-w-[1200px] mx-auto">
         <div className="grid md:grid-cols-3 gap-8">
           {features.map((feature, index) => {
             const Icon = feature.icon;
@@ -36,9 +36,9 @@ export function FeatureGrid() {
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
                 whileHover={{ y: -3 }}
-                className="rounded-xl border border-border/50 bg-muted/20 backdrop-blur-sm p-8 transition-all duration-300"
+                className="rounded-stadium border border-border/20 bg-card/30 backdrop-blur-sm p-8 transition-all duration-300"
               >
-                <div className="size-12 rounded bg-primary/10 flex items-center justify-center mb-6">
+                <div className="w-12 h-12 rounded-xl bg-signal-orange/10 flex items-center justify-center mb-6">
                   <Icon className="h-6 w-6 text-foreground" />
                 </div>
                 <h3 className="text-xl font-bold mb-3">{feature.title}</h3>

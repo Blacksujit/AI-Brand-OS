@@ -1,55 +1,62 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { X, Verified } from "lucide-react";
+import { AlertTriangle, Layers, Database, Waves } from "lucide-react";
 import { useEntrance, type Direction } from "@/lib/animations";
+
+const problems = [
+  {
+    icon: AlertTriangle,
+    title: "Generic Tone",
+    description: "Chatbots use overly polite, fluffy language that immediately signals &ldquo;AI-generated&rdquo; to technical peers.",
+  },
+  {
+    icon: Layers,
+    title: "Lack of Depth",
+    description: "Surface-level summaries that miss the nuanced architectural trade-offs engineers care about.",
+  },
+  {
+    icon: Database,
+    title: "No Context",
+    description: "Tools don&apos;t know your previous work, your tech stack, or your unique perspective on system design.",
+  },
+  {
+    icon: Waves,
+    title: "Inconsistent Voice",
+    description: "One post sounds like a marketing intern, the next like an academic paper. Your brand becomes noise.",
+  },
+];
 
 export function Problem({ direction = "left" }: { direction?: Direction }) {
   const sectionAnim = useEntrance(direction);
 
   return (
-    <section className="py-24 px-6 border-y border-border/50">
-      <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-20 items-center">
-        <motion.div {...sectionAnim}>
-          <h2 className="text-4xl font-bold mb-6">Generic AI fails technical professionals.</h2>
-          <p className="text-muted-foreground text-lg mb-8 leading-relaxed">
-            Most LinkedIn &ldquo;AI tools&rdquo; feel fake because they are just LLMs guessing based on generic trends. They don&apos;t know you, your code, or your unique perspective.
-          </p>
-          <div className="space-y-6">
-            <div className="flex items-start gap-4">
-              <div className="p-2 rounded bg-red-500/10 text-red-400">
-                <X className="h-4 w-4" />
-              </div>
-              <div>
-                <h4 className="font-bold">The &ldquo;Ghostwriter&rdquo; Problem</h4>
-                <p className="text-sm text-muted-foreground">Polished but empty posts that everyone scrolls past.</p>
-              </div>
+    <section className="py-24 px-6 max-w-[1200px] mx-auto">
+      <motion.div {...sectionAnim} className="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
+        <div className="max-w-xl">
+          <span className="text-signal-orange font-mono text-[12px] uppercase tracking-[0.2em] mb-4 block">The Challenge</span>
+          <h2 className="text-4xl md:text-5xl font-bold leading-tight">Why AI Writing Tools Fail Engineers.</h2>
+        </div>
+        <p className="text-muted-foreground max-w-sm mb-2">Most AI tools prioritize volume over depth. For technical professionals, that&apos;s a recipe for a shallow reputation.</p>
+      </motion.div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {problems.map((problem, index) => (
+          <motion.div
+            key={problem.title}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: index * 0.1 }}
+            whileHover={{ y: -2 }}
+            className="p-8 rounded-stadium border border-border/20 bg-card/30 transition-all duration-300 hover:border-border/50"
+          >
+            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-6">
+              <problem.icon className="h-6 w-6 text-signal-orange" />
             </div>
-            <div className="flex items-start gap-4">
-              <div className="p-2 rounded bg-red-500/10 text-red-400">
-                <X className="h-4 w-4" />
-              </div>
-              <div>
-                <h4 className="font-bold">Missing Context</h4>
-                <p className="text-sm text-muted-foreground">Generic AI doesn&apos;t know about that 3 AM bug fix that changed your perspective.</p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, x: 40 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="relative aspect-square rounded-2xl overflow-hidden border border-border/50 bg-muted/20 backdrop-blur-sm p-1"
-        >
-          <div className="w-full h-full rounded-xl bg-gradient-to-br from-orange-500/10 via-muted/30 to-muted/20 flex items-center justify-center">
-            <div className="bg-background/80 backdrop-blur-md border border-border/50 p-6 rounded-lg text-center max-w-xs shadow-2xl">
-              <Verified className="h-10 w-10 text-secondary mx-auto mb-4" />
-              <p className="text-sm font-medium">BrandOS connects to your real work to build authentic authority.</p>
-            </div>
-          </div>
-        </motion.div>
+            <h3 className="text-xl font-bold mb-3">{problem.title}</h3>
+            <p className="text-muted-foreground text-sm leading-relaxed">{problem.description}</p>
+          </motion.div>
+        ))}
       </div>
     </section>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/features/ui";
@@ -11,7 +11,7 @@ import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { RegisterRequestSchema } from "@/lib/validators/auth";
 import { apiPostValidated, TokenResponseSchema, setTokens } from "@/lib/api/client";
 
-export default function RegisterPage() {
+function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/app";
@@ -170,5 +170,19 @@ export default function RegisterPage() {
         </CardFooter>
       </Card>
     </main>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <main className="flex min-h-screen items-center justify-center p-4">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </main>
+    }>
+      <RegisterContent />
+    </Suspense>
   );
 }

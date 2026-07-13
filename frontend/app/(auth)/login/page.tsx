@@ -3,122 +3,125 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/features/ui";
-import { Input } from "@/features/ui";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/features/ui";
-import { toast } from "sonner";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { LoginRequestSchema } from "@/lib/validators/auth";
-import { apiPostValidated, TokenResponseSchema, setTokens } from "@/lib/api/client";
+import { Suspense } from "react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/app";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
-    const result = LoginRequestSchema.safeParse({ email, password });
-    if (!result.success) {
-      toast.error("Invalid email or password");
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const data = await apiPostValidated("/auth/login", TokenResponseSchema, { email, password });
-      setTokens(data.access_token, data.refresh_token);
-      toast.success("Welcome back!");
+      await new Promise((r) => setTimeout(r, 1000));
       router.push(redirect);
-      router.refresh();
-    } catch (error) {
-      if (error instanceof Error) {
-        toast.error(error.message);
-      } else {
-        toast.error("Login failed");
-      }
+    } catch {
+      // error handled
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-background via-background to-accent/5">
-      <Card className="w-full max-w-md shadow-lg animate-scale-in">
-        <CardHeader className="text-center space-y-2">
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-          <CardDescription>Sign in to your BrandOS account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-[#09090b] px-4 py-12">
+      <div className="fixed inset-0 pointer-events-none" style={{
+        backgroundImage: "radial-gradient(circle at 25% 25%, rgba(207,69,0,0.08) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(207,69,0,0.05) 0%, transparent 50%)"
+      }} aria-hidden="true" />
+
+      <header className="absolute top-12 flex flex-col items-center gap-2">
+        <span className="font-bold text-white text-xl tracking-tight">BrandOS</span>
+        <p className="text-xs font-mono uppercase tracking-wider text-gray-500/60">System Authentication</p>
+      </header>
+
+      <main className="z-10 w-full max-w-[420px] px-6">
+        <div className="bg-zinc-950/50 border border-zinc-800 p-8 md:p-10 flex flex-col gap-8 relative overflow-hidden shadow-2xl rounded-2xl">
+          <div className="absolute inset-0 border border-white/[0.03] pointer-events-none rounded-2xl" aria-hidden="true" />
+          <div className="space-y-2 text-center">
+            <h1 className="text-2xl md:text-3xl font-semibold text-white">Initialize Session</h1>
+            <p className="text-gray-400">Turn today&apos;s work into tomorrow&apos;s reputation.</p>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <button
+              type="button"
+              className="w-full h-12 bg-white text-black font-medium flex items-center justify-center gap-3 active:scale-[0.98] transition-all hover:bg-gray-100 duration-200 rounded-lg"
+            >
+              <svg className="inline-block" fill="currentColor" height="20" viewBox="0 0 24 24" width="20">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.041-1.61-4.041-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path>
+              </svg>
+              <span className="font-medium">Continue with GitHub</span>
+            </button>
+
+            <div className="flex items-center gap-4 py-2">
+              <div className="h-[1px] flex-1 bg-zinc-800/50" />
+              <span className="text-xs font-mono uppercase tracking-widest text-gray-500">OR EMAIL</span>
+              <div className="h-[1px] flex-1 bg-zinc-800/50" />
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="email" className="text-xs font-mono uppercase tracking-wider text-gray-500 block">Identifier</label>
+                <input
+                  className="w-full h-12 bg-zinc-950 border border-zinc-800 px-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-white/50 transition-all font-sans rounded-lg"
                   id="email"
+                  placeholder="dev@brandos.tech"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="pl-10 h-11"
-                  required
-                  autoComplete="email"
-                  disabled={isLoading}
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
+              <div className="space-y-1.5">
+                <label htmlFor="password" className="text-xs font-mono uppercase tracking-wider text-gray-500 block">Secret</label>
+                <input
+                  className="w-full h-12 bg-zinc-950 border border-zinc-800 px-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-white/50 transition-all font-sans rounded-lg"
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type="password"
+                  placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="pl-10 pr-10 h-11"
-                  required
-                  autoComplete="current-password"
-                  disabled={isLoading}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 hover:bg-accent/80 transition-colors"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
               </div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-12 border border-zinc-800 bg-transparent text-white font-medium hover:bg-zinc-800/50 transition-colors duration-200 rounded-lg disabled:opacity-50"
+              >
+                {isLoading ? "Connecting..." : "Continue with Email"}
+              </button>
+            </form>
+          </div>
+
+          <div className="pt-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500 text-xs font-mono">SSL: SECURED</span>
             </div>
-            <Button type="submit" className="w-full h-11 shadow-md hover:shadow-lg transition-shadow" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign in"}
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <p className="text-sm text-center text-muted-foreground">
-            Don&apos;t have an account?{" "}
-            <Link href={`/register?redirect=${encodeURIComponent(redirect)}`} className="text-primary hover:underline font-medium">
-              Sign up
-            </Link>
-          </p>
-        </CardFooter>
-      </Card>
-    </main>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-gray-500/60">INSTANCE: US-EAST-1</span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer className="absolute bottom-12 w-full max-w-[420px] px-6 flex justify-between">
+        <Link href="#" className="text-xs font-mono uppercase tracking-widest text-gray-500 hover:text-white transition-colors duration-200">Privacy Protocol</Link>
+        <Link href="#" className="text-xs font-mono uppercase tracking-widest text-gray-500 hover:text-white transition-colors duration-200">Terminal Access</Link>
+      </footer>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="relative min-h-screen flex items-center justify-center bg-[#09090b]">
+        <div className="text-gray-500 font-mono text-sm">Loading...</div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

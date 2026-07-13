@@ -68,13 +68,14 @@ export function FAQ({ direction = "left" }: { direction?: Direction }) {
                 }`}
               />
             </button>
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {openIndex === index && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+                  transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                  className="overflow-hidden"
                 >
                   <div className="px-6 pb-4 text-sm text-muted-foreground">
                     {faq.answer}

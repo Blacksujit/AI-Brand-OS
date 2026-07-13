@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const StyleProfileSchema = z.object({
-  style_params: z.record(z.number()),
+  style_params: z.record(z.string(), z.number()),
   voice_embedding: z.array(z.number()).nullable(),
   learning_rate: z.number(),
   confidence: z.number(),
@@ -14,7 +14,7 @@ export const RateDraftRequestSchema = z.object({
   draft_id: z.string().uuid(),
   score: z.number().int().min(1).max(5),
   comment: z.string().optional(),
-  dimension_scores: z.record(z.number().int().min(1).max(5)).optional(),
+  dimension_scores: z.record(z.string(), z.number().int().min(1).max(5)).optional(),
 });
 
 export const StyleAnalysisResponseSchema = z.object({
@@ -23,7 +23,7 @@ export const StyleAnalysisResponseSchema = z.object({
   tonal_match: z.number(),
   structural_match: z.number(),
   overall_match: z.number(),
-  deviations: z.record(z.string()),
+  deviations: z.record(z.string(), z.string()),
 });
 
 export const StyleInsightItemSchema = z.object({

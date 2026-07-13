@@ -1,13 +1,15 @@
 import { Navigation } from "./components/Navigation";
 import { Hero } from "./components/Hero";
-import { MetricBar } from "./components/MetricBar";
-import { ProductPreview } from "./components/ProductPreview";
 import { Problem } from "./components/Problem";
+import { Solution } from "./components/Solution";
+import { ProductPreview } from "./components/ProductPreview";
 import { Workflow } from "./components/Workflow";
 import { FeatureGrid } from "./components/FeatureGrid";
+import { WorkspacePreview } from "./components/WorkspacePreview";
+import { WhyBrandOS } from "./components/WhyBrandOS";
 import { Security } from "./components/Security";
 import { Pricing } from "./components/Pricing";
-import { CTA } from "./components/CTA";
+import { FAQ } from "./components/FAQ";
 import { Footer } from "./components/Footer";
 
 function DotGrid() {
@@ -45,26 +47,32 @@ function SectionDivider() {
 
 export default function LandingPage() {
   return (
-    <div className="relative min-h-screen bg-background text-foreground">
+    <div className="relative min-h-dvh bg-background text-foreground">
       <DotGrid />
       <AmbientGlow />
       <Navigation />
       <main className="relative z-10">
         <Hero />
-        <MetricBar />
-        <ProductPreview />
         <SectionDivider />
         <Problem direction="left" />
+        <SectionDivider />
+        <Solution direction="right" />
+        <SectionDivider />
+        <ProductPreview direction="up" />
         <SectionDivider />
         <Workflow direction="left" />
         <SectionDivider />
         <FeatureGrid />
         <SectionDivider />
+        <WorkspacePreview direction="up" />
+        <SectionDivider />
+        <WhyBrandOS direction="left" />
+        <SectionDivider />
         <Security direction="right" />
         <SectionDivider />
         <Pricing direction="up" />
         <SectionDivider />
-        <CTA direction="up" />
+        <FAQ direction="left" />
       </main>
       <Footer />
     </div>

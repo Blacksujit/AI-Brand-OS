@@ -1,4 +1,4 @@
-# Low Level Design: BrandOS
+# Low Level Design: BrandOS (Firebase Stack)
 
 ## Document Info
 
@@ -6,2792 +6,1099 @@
 |-------|-------|
 | **Author** | Architecture Team |
 | **Status** | Draft |
-| **Created** | 2026-06-26 |
-| **Last Updated** | 2026-06-26 |
-| **Target Release** | Q4 2026 |
-
----
-
-## Table of Contents
-
-- [Design Principles](#1-design-principles)
-- [Service Definitions & Interfaces](#2-service-definitions--interfaces)
-- [Data Contracts](#3-data-contracts)
-- [Service Dependencies & Boundaries](#4-service-dependencies--boundaries)
-- [Internal Module Structure](#5-internal-module-structure)
-- [Error Handling](#6-error-handling)
-- [Configuration & Environment](#7-configuration--environment)
+| **Created** | 2026-07-14 |
+| **Last Updated** | 2026-07-14 |
+| **Stack** | Firebase Cloud Functions (TypeScript) + Next.js + Groq |
 
 ---
 
 ## 1. Design Principles
 
-### 1.1 Interface Design Rules
-
-| Rule | Description |
-|------|-------------|
-| **Every service has a single `Service` class** | Public API surface is one class per service. Internal helpers are private. |
-| **Every public method has typed inputs and outputs** | Pydantic models only. No raw dicts, no `**kwargs`. |
-| **Every method either returns data or raises a typed exception** | No silent `None` returns. No `Optional` for expected values. |
-| **No circular dependencies between services** | Dependency graph is a DAG. Services depend on interfaces, not implementations. |
-| **Every service is instantiated with its dependencies** | Constructor injection. No global state, no singletons. |
-
-### 1.2 Package Structure Convention
-
-```
-service_name/
-├── __init__.py              # exports Service class
-├── service.py               # Service implementation
-├── models.py                # Pydantic input/output models
-├── exceptions.py            # Typed exceptions
-├── dependencies.py          # FastAPI dependency injection
-├── router.py                # FastAPI router (if exposed via HTTP)
-└── helpers/
-    ├── __init__.py
-    └── *.py                 # Internal helper modules
-```
-
-### 1.3 Naming Conventions
-
-| Element | Convention | Example |
-|---------|-----------|---------|
-| Service class | `{Domain}Service` | `ContentService` |
-| Repository class | `{Entity}Repository` | `DraftRepository` |
-| Pydantic input model | `{Action}{Domain}Request` | `GenerateDraftRequest` |
-| Pydantic output model | `{Domain}{Action}Response` | `DraftGenerateResponse` |
-| Exception | `{Domain}Error` | `ContentGenerationError` |
-| Internal helper | `{verb}_{noun}.py` | `parse_markdown.py` |
+| Principle | Application |
+|-----------|-------------|
+| **Single Responsibility** | Each Cloud Function serves exactly one purpose. No "god functions" that handle multiple domains. |
+| **Typed Contracts** | Every function has a Zod input schema and a typed output interface. No `any` or raw `unknown` across boundaries. |
+| **Stateless Handlers** | Cloud Functions are stateless. All state lives in Firestore, pgvector, or Cloud Storage. No in-memory caching between invocations. |
+| **Fail Fast** | Input validation is the first step in every function. Invalid input → rejected before any Side effect. |
+| **Observable by Default** | Every function logs: invocation, input hash (no PII), duration, errors. Structured logging with severity levels. |
+| **Provider-Independent AI** | LLM and Embedding providers are behind adapter interfaces. Swapping Groq for another provider requires changing one file. |
+| **Composable Pipeline** | The content pipeline is a sequence of pure functions with typed intermediate states. Each stage can be tested, cached, or skipped independently. |
 
 ---
 
-## 2. Service Definitions & Interfaces
+## 2. Shared Data Contracts
 
-### 2.1 Auth Service
+### 2.1 Common Types
 
-**Responsibility:** User authentication, OAuth flows, token management.
+```typescript
+// File: functions/src/common/types.ts
 
-```python
-# MODULE: auth_service/service.py
+// ── Core Identifiers ──
+type UserId = string;       // Firebase Auth UID
+type DraftId = string;      // Firestore document ID
+type BriefId = string;
+type KnowledgeId = string;
+type ConnectionId = string;
 
-class AuthService:
-    """
-    Handles authentication, OAuth flows, and session management.
-    No direct database access — delegates to AuthRepository.
-    """
+// ── Content Types ──
+type ContentTone = 'conversational' | 'professional' | 'technical' | 'opinionated';
+type ContentLength = 'short' | 'medium' | 'long';
+type ContentType = 'tutorial' | 'opinion' | 'project_update' | 'paper_summary' | 'industry_commentary';
+type PostStatus = 'draft' | 'approved' | 'scheduled' | 'published' | 'failed';
 
-    def __init__(
-        self,
-        user_repo: UserRepository,
-        token_repo: TokenRepository,
-        oauth_clients: dict[str, OAuthClient],
-        crypto: CryptoService,
-    ): ...
+// ── Style Profile ──
+interface StyleProfile {
+  tone: ContentTone;
+  depth: 'tutorial' | 'opinion' | 'insight' | 'news';
+  averageLength: ContentLength;
+  hookStyle: 'question' | 'stat' | 'quote' | 'story' | 'none';
+  formality: number;             // 0.0 (casual) – 1.0 (formal)
+  technicalDepth: number;        // 0.0 (beginner) – 1.0 (expert)
+  preferredTerms: string[];      // Vocabulary the user favors
+  avoidedTerms: string[];        // Vocabulary the user avoids
+  sentenceLength: number;        // Average words per sentence
+  paragraphLength: number;       // Average sentences per paragraph
+}
 
-    # --- Registration & Login ---
+// ── Context Aggregation ──
+interface ContentContext {
+  recentCommits: CommitInfo[];
+  recentPRs: PRInfo[];
+  topLanguages: string[];
+  topTags: string[];
+  recentKnowledge: KnowledgeItem[];
+  trendingTopics: TrendingTopic[];
+  expertiseAreas: string[];
+}
 
-    async def register_email(
-        self, request: RegisterEmailRequest
-    ) -> AuthResult: ...
+// ── Cloud Function Response Envelope ──
+interface FunctionResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+}
 
-    async def login_email(
-        self, request: LoginEmailRequest
-    ) -> AuthResult: ...
+// ── Pagination ──
+interface PaginatedRequest {
+  limit?: number;      // default 10, max 50
+  cursor?: string;     // Firestore document ID for cursor pagination
+}
 
-    async def login_oauth(
-        self, request: LoginOAuthRequest
-    ) -> AuthResult: ...
-
-    # --- OAuth Flows ---
-
-    async def initiate_oauth(
-        self, provider: str, redirect_uri: str
-    ) -> OAuthInitiationResult: ...
-
-    async def handle_oauth_callback(
-        self, provider: str, code: str, state: str
-    ) -> AuthResult: ...
-
-    # --- Token Management ---
-
-    async def refresh_access_token(
-        self, refresh_token: str
-    ) -> AuthResult: ...
-
-    async def revoke_session(
-        self, user_id: uuid.UUID, session_id: uuid.UUID
-    ) -> None: ...
-
-    # --- Platform Token Management ---
-
-    async def store_platform_token(
-        self, user_id: uuid.UUID, platform: str, token: PlatformTokenData
-    ) -> None: ...
-
-    async def get_platform_token(
-        self, user_id: uuid.UUID, platform: str
-    ) -> PlatformTokenData: ...
-
-    async def refresh_platform_token(
-        self, user_id: uuid.UUID, platform: str
-    ) -> PlatformTokenData: ...
-
-    # --- Session Validation ---
-
-    async def validate_session(
-        self, access_token: str
-    ) -> SessionInfo: ...
-
-    async def get_active_sessions(
-        self, user_id: uuid.UUID
-    ) -> list[SessionInfo]: ...
+interface PaginatedResponse<T> {
+  items: T[];
+  nextCursor?: string;
+  hasMore: boolean;
+}
 ```
 
-```python
-# MODULE: auth_service/models.py
-
-class RegisterEmailRequest(BaseModel):
-    email: EmailStr
-    password: str  # min 8 chars, complexity validated server-side
-    display_name: str
-
-class LoginEmailRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-class LoginOAuthRequest(BaseModel):
-    provider: Literal["google", "github", "linkedin"]
-    auth_code: str
-    redirect_uri: str
-
-class AuthResult(BaseModel):
-    user_id: uuid.UUID
-    access_token: str          # JWT, 15min TTL
-    refresh_token: str         # Opaque, 7-day TTL, rotating
-    expires_at: datetime
-    is_new_user: bool
-
-class OAuthInitiationResult(BaseModel):
-    authorization_url: str
-    state: str
-    code_verifier: str         # PKCE
-
-class PlatformTokenData(BaseModel):
-    access_token: str          # Encrypted at rest
-    refresh_token: str | None  # Encrypted at rest
-    expires_at: datetime
-    scope: list[str]
-    token_type: str
-
-class SessionInfo(BaseModel):
-    user_id: uuid.UUID
-    session_id: uuid.UUID
-    created_at: datetime
-    expires_at: datetime
-    is_valid: bool
-```
-
-### 2.2 Profile Service
-
-**Responsibility:** User profiles, expertise areas, preferences.
-
-```python
-# MODULE: profile_service/service.py
-
-class ProfileService:
-    """
-    Manages user profiles, expertise areas, and content preferences.
-    Single source of truth for user configuration.
-    """
-
-    def __init__(
-        self,
-        profile_repo: ProfileRepository,
-        expertise_repo: ExpertiseRepository,
-        preference_repo: PreferenceRepository,
-    ): ...
-
-    # --- Profile ---
-
-    async def get_profile(
-        self, user_id: uuid.UUID
-    ) -> UserProfile: ...
-
-    async def update_profile(
-        self, user_id: uuid.UUID, request: UpdateProfileRequest
-    ) -> UserProfile: ...
-
-    async def get_onboarding_status(
-        self, user_id: uuid.UUID
-    ) -> OnboardingStatus: ...
-
-    # --- Expertise Areas ---
-
-    async def list_expertise_areas(
-        self, user_id: uuid.UUID
-    ) -> list[ExpertiseArea]: ...
-
-    async def add_expertise_area(
-        self, user_id: uuid.UUID, request: AddExpertiseRequest
-    ) -> ExpertiseArea: ...
-
-    async def remove_expertise_area(
-        self, user_id: uuid.UUID, area_id: uuid.UUID
-    ) -> None: ...
-
-    async def update_expertise_area(
-        self, user_id: uuid.UUID, area_id: uuid.UUID, request: UpdateExpertiseRequest
-    ) -> ExpertiseArea: ...
-
-    # --- Preferences ---
-
-    async def get_preferences(
-        self, user_id: uuid.UUID
-    ) -> UserPreferences: ...
-
-    async def update_preferences(
-        self, user_id: uuid.UUID, request: UpdatePreferencesRequest
-    ) -> UserPreferences: ...
-```
-
-### 2.3 GitHub Service
-
-**Responsibility:** GitHub repo analysis, commit scraping, activity detection.
-
-```python
-# MODULE: github_service/service.py
-
-class GitHubService:
-    """
-    Analyzes public GitHub repositories for content signals.
-    Poll-based with webhook optimization path.
-    """
-
-    def __init__(
-        self,
-        github_client: GitHubClient,
-        repo_repo: GitHubRepositoryRepository,
-        cache: CacheService,
-    ): ...
-
-    # --- Connection ---
-
-    async def connect(
-        self, user_id: uuid.UUID, access_token: str
-    ) -> GitHubConnectionStatus: ...
-
-    async def disconnect(
-        self, user_id: uuid.UUID
-    ) -> None: ...
-
-    async def get_connection_status(
-        self, user_id: uuid.UUID
-    ) -> GitHubConnectionStatus: ...
-
-    # --- Repository Analysis ---
-
-    async def list_repos(
-        self, user_id: uuid.UUID
-    ) -> list[GitHubRepo]: ...
-
-    async def analyze_repos(
-        self, user_id: uuid.UUID
-    ) -> GitHubAnalysisResult: ...
-
-    # --- Activity ---
-
-    async def get_recent_activity(
-        self, user_id: uuid.UUID
-    ) -> GitHubActivity: ...
-
-    async def get_commits(
-        self, user_id: uuid.UUID, repo_id: str, since: datetime
-    ) -> list[GitHubCommit]: ...
-
-    async def get_pull_requests(
-        self, user_id: uuid.UUID, repo_id: str, since: datetime
-    ) -> list[GitHubPullRequest]: ...
-
-    # --- Sync Management ---
-
-    async def get_sync_status(
-        self, user_id: uuid.UUID
-    ) -> SyncStatus: ...
-
-    async def trigger_sync(
-        self, user_id: uuid.UUID
-    ) -> None: ...
-```
-
-```python
-# MODULE: github_service/models.py
-
-class GitHubRepo(BaseModel):
-    id: str
-    name: str
-    full_name: str
-    description: str | None
-    url: str
-    language: str | None
-    languages: dict[str, int]       # language → bytes
-    topics: list[str]
-    stars: int
-    forks: int
-    is_archived: bool
-    last_push_at: datetime
-    is_analyzed: bool
-
-class GitHubCommit(BaseModel):
-    sha: str
-    message: str
-    author: str
-    author_avatar: str
-    date: datetime
-    url: str
-    repo_name: str
-    files_changed: list[str]
-
-class GitHubPullRequest(BaseModel):
-    id: int
-    title: str
-    body: str | None
-    state: Literal["open", "merged", "closed"]
-    created_at: datetime
-    merged_at: datetime | None
-    url: str
-    repo_name: str
-    labels: list[str]
-
-class GitHubActivity(BaseModel):
-    user_id: uuid.UUID
-    recent_commits: list[GitHubCommit]
-    recent_prs: list[GitHubPullRequest]
-    active_repos: list[str]
-    top_languages: dict[str, float]  # language → percentage
-    activity_score: float            # 0.0 to 1.0
-    analyzed_at: datetime
-
-class GitHubAnalysisResult(BaseModel):
-    repos_analyzed: int
-    total_commits: int
-    total_prs: int
-    top_languages: dict[str, float]
-    primary_focus: str              # AI-generated summary of what user builds
-    key_topics: list[str]           # Extracted from repo descriptions, READMEs
-    analysis_duration_ms: int
-```
-
-### 2.4 Knowledge Base Service
-
-**Responsibility:** Personal knowledge base CRUD, search, embedding management.
-
-```python
-# MODULE: knowledge_base_service/service.py
-
-class KnowledgeBaseService:
-    """
-    Manages the user's curated knowledge repository.
-    Handles text extraction, summarization, embedding, and hybrid search.
-    """
-
-    def __init__(
-        self,
-        kb_repo: KnowledgeItemRepository,
-        tag_repo: KnowledgeTagRepository,
-        embedding_service: EmbeddingService,
-        llm_client: LLMClient,
-        extractor: ContentExtractor,
-        storage: StorageService,
-    ): ...
-
-    # --- CRUD ---
-
-    async def add_item(
-        self, user_id: uuid.UUID, request: AddKnowledgeItemRequest
-    ) -> KnowledgeItem: ...
-
-    async def get_item(
-        self, user_id: uuid.UUID, item_id: uuid.UUID
-    ) -> KnowledgeItem: ...
-
-    async def update_item(
-        self, user_id: uuid.UUID, item_id: uuid.UUID, request: UpdateKnowledgeItemRequest
-    ) -> KnowledgeItem: ...
-
-    async def delete_item(
-        self, user_id: uuid.UUID, item_id: uuid.UUID
-    ) -> None: ...
-
-    async def list_items(
-        self, user_id: uuid.UUID, filters: KnowledgeItemFilter
-    ) -> PaginatedResult[KnowledgeItem]: ...
-
-    # --- Search ---
-
-    async def search(
-        self, user_id: uuid.UUID, query: SearchQuery
-    ) -> list[SearchResult]: ...
-
-    async def get_related(
-        self, user_id: uuid.UUID, item_id: uuid.UUID, limit: int = 5
-    ) -> list[KnowledgeItem]: ...
-
-    # --- Context Building ---
-
-    async def get_recent_context(
-        self, user_id: uuid.UUID, limit: int = 20
-    ) -> KnowledgeContext: ...
-
-    async def get_context_for_topic(
-        self, user_id: uuid.UUID, topic: str, limit: int = 5
-    ) -> list[KnowledgeItem]: ...
-
-    # --- Tag Management ---
-
-    async def get_tags(
-        self, user_id: uuid.UUID
-    ) -> list[TagWithCount]: ...
-
-    async def suggest_tags(
-        self, user_id: uuid.UUID, item_id: uuid.UUID
-    ) -> list[str]: ...
-
-    async def merge_tags(
-        self, user_id: uuid.UUID, source_tag: str, target_tag: str
-    ) -> None: ...
-
-    # --- Ingestion Pipeline ---
-
-    async def process_url(
-        self, user_id: uuid.UUID, url: str
-    ) -> ProcessingResult: ...
-
-    async def process_pdf(
-        self, user_id: uuid.UUID, file_key: str
-    ) -> ProcessingResult: ...
-
-    async def generate_summary(
-        self, user_id: uuid.UUID, item_id: uuid.UUID
-    ) -> str: ...
-```
-
-```python
-# MODULE: knowledge_base_service/models.py
-
-class AddKnowledgeItemRequest(BaseModel):
-    url: str | None = None
-    title: str
-    notes: str | None = None
-    tags: list[str] = []
-    source_type: Literal["url", "note", "pdf", "import"]
-    content_type: Literal["article", "paper", "tutorial", "idea", "reference", "other"]
-    extracted_text: str | None = None
-
-class KnowledgeItem(BaseModel):
-    id: uuid.UUID
-    user_id: uuid.UUID
-    url: str | None
-    title: str
-    summary: str | None
-    tags: list[str]
-    source_type: str
-    content_type: str
-    reading_time_minutes: int
-    created_at: datetime
-    updated_at: datetime
-
-class KnowledgeContext(BaseModel):
-    items: list[KnowledgeItem]
-    top_tags: list[TagWithCount]
-    total_count: int
-    context_summary: str          # LLM-generated summary of recent knowledge
-
-class SearchQuery(BaseModel):
-    text: str                     # Keyword or semantic query
-    tags: list[str] | None = None
-    content_types: list[str] | None = None
-    limit: int = 10
-    offset: int = 0
-    search_mode: Literal["hybrid", "keyword", "semantic"] = "hybrid"
-
-class SearchResult(BaseModel):
-    item: KnowledgeItem
-    score: float
-    match_type: Literal["keyword", "semantic", "hybrid"]
-
-class TagWithCount(BaseModel):
-    tag: str
-    count: int
-    is_auto_generated: bool
-
-class ProcessingResult(BaseModel):
-    item_id: uuid.UUID
-    title: str
-    summary: str | None
-    tags: list[str]
-    reading_time_minutes: int
-    processing_duration_ms: int
-```
-
-### 2.5 Trend Service
-
-**Responsibility:** Trending topic discovery, relevance scoring, source management.
-
-```python
-# MODULE: trend_service/service.py
-
-class TrendService:
-    """
-    Discovers and scores trending topics relevant to user expertise areas.
-    Aggregates from multiple curated sources.
-    """
-
-    def __init__(
-        self,
-        trend_repo: TrendRepository,
-        source_clients: list[TrendSourceClient],
-        llm_client: LLMClient,
-        cache: CacheService,
-    ): ...
-
-    # --- Trending Topics ---
-
-    async def get_trending_topics(
-        self, user_id: uuid.UUID, expertise_areas: list[str]
-    ) -> list[TrendingTopic]: ...
-
-    async def get_global_trending(
-        self, expertise_areas: list[str] | None = None
-    ) -> list[TrendingTopic]: ...
-
-    # --- Source Management ---
-
-    async def get_sources(
-        self
-    ) -> list[TrendSource]: ...
-
-    async def add_source(
-        self, request: AddTrendSourceRequest
-    ) -> TrendSource: ...
-
-    async def remove_source(
-        self, source_id: uuid.UUID
-    ) -> None: ...
-
-    # --- Relevance Scoring ---
-
-    async def score_topic_relevance(
-        self, topic: str, expertise_areas: list[str]
-    ) -> RelevanceScore: ...
-
-    async def explain_relevance(
-        self, topic: str, expertise_areas: list[str]
-    ) -> RelevanceExplanation: ...
-
-    # --- Internal Pipeline ---
-
-    async def _ingest_sources(self) -> None: ...
-    async def _deduplicate_topics(self, topics: list[RawTopic]) -> list[DeduplicatedTopic]: ...
-    async def _rank_by_relevance(
-        self, topics: list[DeduplicatedTopic], expertise_areas: list[str]
-    ) -> list[RelevanceRankedTopic]: ...
-```
-
-```python
-# MODULE: trend_service/models.py
-
-class TrendingTopic(BaseModel):
-    id: uuid.UUID
-    title: str
-    description: str
-    source: str
-    url: str | None
-    relevance_score: float       # 0.0 to 1.0
-    freshness_score: float       # 0.0 to 1.0
-    engagement_count: int        # Likes, shares, comments across sources
-    related_keywords: list[str]
-    first_seen_at: datetime
-    is_relevant: bool            # Filtered by user expertise
-
-class RelevanceScore(BaseModel):
-    overall: float
-    dimensions: RelevanceDimensions
-
-class RelevanceDimensions(BaseModel):
-    keyword_overlap: float        # 0.0 - 1.0
-    technical_alignment: float    # 0.0 - 1.0
-    timeliness: float             # 0.0 - 1.0
-    authority_signal: float       # 0.0 - 1.0
-    controversy_risk: float       # 0.0 - 1.0 (inverted)
-
-class RelevanceExplanation(BaseModel):
-    score: RelevanceScore
-    matching_keywords: list[str]
-    overlapping_expertise: list[str]
-    supporting_sources: list[str]
-    confidence: float
-```
-
-### 2.6 Content Engine
-
-**Responsibility:** Content idea generation, draft composition, pipeline orchestration.
-
-This is the most complex service. It is implemented as a pipeline with 5 internal stages.
-
-```python
-# MODULE: content_engine/service.py
-
-class ContentEngine:
-    """
-    Orchestrates the 5-stage content generation pipeline.
-    Each stage is a separate module with a defined interface.
-    """
-
-    def __init__(
-        self,
-        context_aggregator: ContextAggregator,
-        idea_generator: IdeaGenerator,
-        draft_composer: DraftComposer,
-        style_refiner: StyleRefiner,
-        quality_gate: QualityGate,
-        llm_client: LLMClient,
-        draft_repo: DraftRepository,
-        brief_repo: BriefRepository,
-    ): ...
-
-    # --- Idea Generation ---
-
-    async def generate_ideas(
-        self, user_id: uuid.UUID, request: GenerateIdeasRequest
-    ) -> list[ContentIdea]: ...
-
-    async def generate_ideas_from_context(
-        self, context: AggregatedContext
-    ) -> list[ContentIdea]: ...
-
-    # --- Draft Generation ---
-
-    async def generate_draft(
-        self, user_id: uuid.UUID, request: GenerateDraftRequest
-    ) -> DraftResult: ...
-
-    async def regenerate_draft(
-        self, user_id: uuid.UUID, draft_id: uuid.UUID, request: RegenerateDraftRequest
-    ) -> DraftResult: ...
-
-    # --- Draft Management ---
-
-    async def get_draft(
-        self, user_id: uuid.UUID, draft_id: uuid.UUID
-    ) -> ContentDraft: ...
-
-    async def update_draft(
-        self, user_id: uuid.UUID, draft_id: uuid.UUID, request: UpdateDraftRequest
-    ) -> ContentDraft: ...
-
-    async def list_drafts(
-        self, user_id: uuid.UUID, filters: DraftFilter
-    ) -> PaginatedResult[ContentDraft]: ...
-
-    async def get_draft_history(
-        self, user_id: uuid.UUID, draft_id: uuid.UUID
-    ) -> list[DraftRevision]: ...
-
-    # --- Brief Management ---
-
-    async def get_today_brief(
-        self, user_id: uuid.UUID
-    ) -> ContentBrief | None: ...
-
-    async def generate_brief(
-        self, user_id: uuid.UUID
-    ) -> ContentBrief: ...
-
-    async def get_brief_by_date(
-        self, user_id: uuid.UUID, date: date
-    ) -> ContentBrief | None: ...
-
-    # --- Pipeline Execution ---
-
-    async def _execute_pipeline(
-        self, context: AggregatedContext, style_profile: StyleProfile, params: GenerationParams
-    ) -> PipelineResult: ...
-```
-
-#### 2.6.1 Stage 1: Context Aggregator
-
-```python
-# MODULE: content_engine/stages/context_aggregator.py
-
-class ContextAggregator:
-    """
-    Gathers and merges all context signals for content generation.
-    Deterministic — no LLM calls.
-    """
-
-    def __init__(
-        self,
-        github_service: GitHubService,
-        kb_service: KnowledgeBaseService,
-        trend_service: TrendService,
-        profile_service: ProfileService,
-    ): ...
-
-    async def aggregate(
-        self, user_id: uuid.UUID
-    ) -> AggregatedContext: ...
-
-    async def weighted_signals(
-        self, user_id: uuid.UUID, weights: SignalWeights | None = None
-    ) -> WeightedSignals: ...
-```
-
-```python
-# MODULE: content_engine/stages/models.py
-
-class AggregatedContext(BaseModel):
-    user_id: uuid.UUID
-    github: GitHubActivity | None
-    knowledge: KnowledgeContext | None
-    trends: list[TrendingTopic]
-    profile: UserProfile
-    expertise: list[ExpertiseArea]
-    aggregated_summary: str       # LLM-generated synthesis
-    signal_breakdown: SignalBreakdown
-
-class SignalWeights(BaseModel):
-    github_recency: float = 0.35
-    github_volume: float = 0.15
-    kb_freshness: float = 0.25
-    kb_diversity: float = 0.10
-    trend_relevance: float = 0.10
-    trend_freshness: float = 0.05
-
-class SignalBreakdown(BaseModel):
-    has_github_activity: bool
-    has_kb_recent: bool
-    has_trends: bool
-    dominant_signal: Literal["github", "knowledge", "trends", "mixed"]
-    signal_quality: float         # 0.0 - 1.0 (how rich the signal set is)
-
-class WeightedSignals(BaseModel):
-    signals: dict[str, float]    # Signal type → weight
-    dominant_topic: str | None
-    suggestion_count: int         # How many ideas to generate
-```
-
-#### 2.6.2 Stage 2: Idea Generator
-
-```python
-# MODULE: content_engine/stages/idea_generator.py
-
-class IdeaGenerator:
-    """
-    Generates and ranks content ideas from aggregated context.
-    Uses LLM for generation but deterministic for ranking.
-    """
-
-    def __init__(
-        self,
-        llm_client: LLMClient,
-        cache: CacheService,
-    ): ...
-
-    async def generate(
-        self, context: AggregatedContext, count: int = 5
-    ) -> list[ContentIdea]: ...
-
-    async def rank(
-        self, ideas: list[ContentIdea], preferences: UserPreferences
-    ) -> list[ContentIdea]: ...
-
-    # --- Internal ---
-
-    async def _deduplicate(
-        self, ideas: list[ContentIdea], existing_briefs: list[ContentBrief]
-    ) -> list[ContentIdea]: ...
-
-    async def _check_novelty(
-        self, idea: ContentIdea, user_id: uuid.UUID
-    ) -> NoveltyScore: ...
-
-    async def _assign_categories(
-        self, ideas: list[ContentIdea], expertise: list[ExpertiseArea]
-    ) -> list[ContentIdea]: ...
-```
-
-```python
-# MODULE: content_engine/stages/idea_generator_models.py
-
-class ContentIdea(BaseModel):
-    id: uuid.UUID
-    title: str
-    description: str
-    angle: str                    # Unique perspective or hook
-    category: ContentCategory
-    relevance_score: float
-    novelty_score: float
-    source_signals: list[str]    # Which data sources informed this idea
-    suggested_tone: Literal["educational", "opinion", "insight", "tutorial", "story"]
-    suggested_length: Literal["short", "medium", "long"]
-    reasoning: str                # Why this idea is relevant now
-
-class ContentCategory(str, Enum):
-    TUTORIAL = "tutorial"            # How-to, technical walkthrough
-    OPINION = "opinion"              # Point of view, hot take
-    PROJECT_UPDATE = "project_update"  # What I built / shipped
-    PAPER_SUMMARY = "paper_summary"    # Research paper breakdown
-    INDUSTRY_ANALYSIS = "industry_analysis"  # Trend commentary
-    PERSONAL_STORY = "personal_story"  # Career lesson, experience
-    CODE_DEEP_DIVE = "code_deep_dive"  # Technical code explanation
-
-class NoveltyScore(BaseModel):
-    is_novel: bool
-    similarity_to_past_posts: float
-    duplicate_of_recent_brief: bool
-    similar_existing_ideas: list[str]
-```
-
-#### 2.6.3 Stage 3: Draft Composer
-
-```python
-# MODULE: content_engine/stages/draft_composer.py
-
-class DraftComposer:
-    """
-    Composes full draft content from an idea and context.
-    Contains the only LLM call in the pipeline.
-    """
-
-    def __init__(
-        self,
-        llm_client: LLMClient,
-        prompt_builder: PromptBuilder,
-    ): ...
-
-    async def compose(
-        self,
-        idea: ContentIdea,
-        context: AggregatedContext,
-        style_profile: StyleProfile,
-        params: CompositionParams,
-    ) -> CompositionResult: ...
-
-    async def regenerate(
-        self,
-        draft_id: uuid.UUID,
-        idea: ContentIdea,
-        context: AggregatedContext,
-        style_profile: StyleProfile,
-        feedback: str | None,
-    ) -> CompositionResult: ...
-```
-
-```python
-# MODULE: content_engine/stages/draft_composer_models.py
-
-class CompositionParams(BaseModel):
-    tone: Literal["conversational", "professional", "technical", "inspirational"] = "conversational"
-    length: Literal["short", "medium", "long"] = "medium"
-    include_code: bool = False
-    include_personal_anecdote: bool = True
-    target_audience: Literal["peers", "managers", "general_tech", "founders"] = "peers"
-    creativity_level: float = 0.7    # 0.0 (conservative) to 1.0 (experimental)
-
-class CompositionResult(BaseModel):
-    draft_id: uuid.UUID
-    title: str
-    body: str
-    word_count: int
-    reading_time_seconds: int
-    llm_used: str
-    tokens_used: int
-    composition_duration_ms: int
-    has_code_blocks: bool
-    sections: list[str]
-
-class PromptBuilder:
-    """
-    Builds structured prompts for the LLM.
-    Separates system prompt (role, constraints) from user prompt (context, idea).
-    """
-
-    def build_system_prompt(
-        self, style_profile: StyleProfile, params: CompositionParams
-    ) -> str: ...
-
-    def build_user_prompt(
-        self, idea: ContentIdea, context: AggregatedContext
-    ) -> str: ...
-
-    def build_regeneration_prompt(
-        self, previous_draft: str, feedback: str, style_profile: StyleProfile
-    ) -> str: ...
-```
-
-#### 2.6.4 Stage 4: Style Refiner
-
-```python
-# MODULE: content_engine/stages/style_refiner.py
-
-class StyleRefiner:
-    """
-    Applies the user's learned style profile to generated drafts.
-    Deterministic — no LLM calls. Pattern-based transformation.
-    """
-
-    def __init__(
-        self,
-        style_service: StyleService,
-    ): ...
-
-    async def refine(
-        self, draft: str, style_profile: StyleProfile
-    ) -> RefinementResult: ...
-
-    async def refine_full(
-        self, draft: CompositionResult, style_profile: StyleProfile
-    ) -> RefinementResult: ...
-```
-
-```python
-# MODULE: content_engine/stages/style_refiner_models.py
-
-class RefinementResult(BaseModel):
-    original_body: str
-    refined_body: str
-    changes_applied: list[StyleChange]
-    style_adherence_score: float     # 0.0 - 1.0
-
-class StyleChange(BaseModel):
-    change_type: Literal[
-        "vocabulary_replacement",
-        "sentence_restructure",
-        "opening_adjustment",
-        "closing_adjustment",
-        "tone_calibration",
-        "technical_depth_adjustment",
-        "hook_insertion",
-        "call_to_action_added",
-    ]
-    original: str
-    refined: str
-    reason: str
-```
-
-#### 2.6.5 Stage 5: Quality Gate
-
-```python
-# MODULE: content_engine/stages/quality_gate.py
-
-class QualityGate:
-    """
-    Validates generated content before presenting to the user.
-    Multi-dimensional quality scoring with configurable thresholds.
-    """
-
-    def __init__(
-        self,
-        llm_client: LLMClient,
-    ): ...
-
-    async def evaluate(
-        self, draft: str, context: AggregatedContext, style_profile: StyleProfile
-    ) -> QualityVerdict: ...
-
-    async def evaluate_section(
-        self, section_text: str, context: AggregatedContext
-    ) -> SectionQuality: ...
-```
-
-```python
-# MODULE: content_engine/stages/quality_gate_models.py
-
-class QualityVerdict(BaseModel):
-    overall_score: float          # 0.0 - 1.0
-    verdict: Literal["pass", "warn", "fail"]
-    dimensions: QualityDimensions
-    warnings: list[QualityWarning]
-    recommendations: list[str]
-
-class QualityDimensions(BaseModel):
-    factual_accuracy: float       # 0.0 - 1.0
-    hallucination_risk: float     # 0.0 - 1.0 (inverted)
-    readability: float            # 0.0 - 1.0
-    authenticity: float           # 0.0 - 1.0 (sounds like user)
-    technical_depth: float        # 0.0 - 1.0
-    engagement_potential: float   # 0.0 - 1.0
-    platform_appropriateness: float  # 0.0 - 1.0
-
-class QualityWarning(BaseModel):
-    severity: Literal["critical", "major", "minor"]
-    category: str
-    message: str
-    affected_text: str | None
-    suggestion: str | None
-
-class SectionQuality(BaseModel):
-    section: str
-    score: float
-    issues: list[str]
-```
-
-### 2.7 Style Service
-
-**Responsibility:** Voice fingerprint management, style learning, edit tracking.
-
-```python
-# MODULE: style_service/service.py
-
-class StyleService:
-    """
-    Learns and applies user writing style.
-    Uses exponential moving average for continuous adaptation.
-    """
-
-    def __init__(
-        self,
-        profile_repo: StyleProfileRepository,
-        signal_repo: StyleSignalRepository,
-        embedding_service: EmbeddingService,
-        analyzer: StyleAnalyzer,
-    ): ...
-
-    # --- Style Profile ---
-
-    async def get_profile(
-        self, user_id: uuid.UUID
-    ) -> StyleProfile: ...
-
-    async def initialize_profile(
-        self, user_id: uuid.UUID
-    ) -> StyleProfile: ...
-
-    # --- Signal Processing ---
-
-    async def record_rating(
-        self, user_id: uuid.UUID, draft_id: uuid.UUID, rating: RatingData
-    ) -> None: ...
-
-    async def record_edit(
-        self, user_id: uuid.UUID, original: str, revised: str, draft_id: uuid.UUID
-    ) -> None: ...
-
-    async def record_approval(
-        self, user_id: uuid.UUID, draft_id: uuid.UUID
-    ) -> None: ...
-
-    async def record_rejection(
-        self, user_id: uuid.UUID, draft_id: uuid.UUID
-    ) -> None: ...
-
-    async def import_posts(
-        self, user_id: uuid.UUID, posts: list[str]
-    ) -> ImportResult: ...
-
-    # --- Analysis ---
-
-    async def analyze_draft(
-        self, text: str, profile: StyleProfile
-    ) -> StyleAnalysis: ...
-
-    async def get_learning_progress(
-        self, user_id: uuid.UUID
-    ) -> LearningProgress: ...
-
-    async def get_style_insights(
-        self, user_id: uuid.UUID
-    ) -> StyleInsights: ...
-
-    # --- Internal ---
-
-    async def _update_embedding(
-        self, profile: StyleProfile, signal: StyleSignalData
-    ) -> None: ...
-
-    async def _update_params(
-        self, profile: StyleProfile, signal: StyleSignalData
-    ) -> None: ...
-
-    async def _calculate_learning_rate(
-        self, profile: StyleProfile
-    ) -> float: ...
-```
-
-```python
-# MODULE: style_service/models.py
-
-class StyleProfile(BaseModel):
-    id: uuid.UUID
-    user_id: uuid.UUID
-    voice_embedding: list[float]     # 768-dim vector
-    style_params: StyleParameters
-    learning_rate: float             # 0.01 - 0.1, decreases with more data
-    total_ratings: int
-    total_edits: int
-    total_approved: int
-    confidence: float                # 0.0 - 1.0, increases with signal volume
-    updated_at: datetime
-
-class StyleParameters(BaseModel):
-    # Vocabulary
-    preferred_terms: dict[str, float]       # term → weight
-    avoided_terms: list[str]
-    technical_term_density: float           # 0.0 - 1.0
-
-    # Structure
-    average_sentence_length: float          # words
-    average_paragraph_length: float         # sentences
-    preferred_opening: Literal["question", "statement", "quote", "statistic", "story"]
-    preferred_closing: Literal["question", "cta", "summary", "opinion"]
-    uses_bullet_lists: bool
-    uses_code_blocks: bool
-
-    # Tone
-    formality: float                        # 0.0 (casual) - 1.0 (formal)
-    confidence_markers: list[str]           # e.g., ["I believe", "In my experience"]
-    humor_frequency: float                  # 0.0 - 1.0
-    analogy_frequency: float                # 0.0 - 1.0
-
-    # Depth
-    default_depth: Literal["overview", "intermediate", "deep"]
-    citation_preference: Literal["none", "minimal", "extensive"]
-    code_example_frequency: float           # 0.0 - 1.0
-
-class RatingData(BaseModel):
-    score: int                                    # 1-5
-    comment: str | None
-    dimension_scores: RatingDimensions | None
-
-class RatingDimensions(BaseModel):
-    authenticity: int = 3
-    technical_depth: int = 3
-    readability: int = 3
-    relevance: int = 3
-    tone: int = 3
-
-class StyleAnalysis(BaseModel):
-    vocabulary_match: float
-    sentence_structure_match: float
-    tone_alignment: float
-    technical_depth_match: float
-    overall_similarity: float
-    deviations: list[StyleDeviation]
-
-class StyleDeviation(BaseModel):
-    aspect: str
-    expected: str
-    actual: str
-    severity: Literal["minor", "moderate", "major"]
-    suggestion: str
-
-class LearningProgress(BaseModel):
-    signals_collected: int
-    signals_needed_for_stable: int          # Target: ~50
-    profile_confidence: float
-    is_stable: bool                          # True when confidence > 0.8
-    days_until_stable_estimate: int | None
-
-class StyleInsights(BaseModel):
-    dominant_voice_characteristics: list[str]
-    top_improvement_areas: list[str]
-    consistency_trend: Literal["improving", "stable", "declining"]
-    recommended_reading: list[str] | None    # Suggest content to analyze
-
-class ImportResult(BaseModel):
-    posts_imported: int
-    signals_extracted: int
-    profile_updated: bool
-    confidence_delta: float
-```
-
-### 2.8 Platform Service
-
-**Responsibility:** Cross-platform publishing, scheduling, platform adapters.
-
-```python
-# MODULE: platform_service/service.py
-
-class PlatformService:
-    """
-    Manages publishing and scheduling across all platform adapters.
-    Delegates platform-specific logic to adapter implementations.
-    """
-
-    def __init__(
-        self,
-        adapters: dict[str, PlatformAdapter],
-        schedule_repo: ScheduleRepository,
-        publish_repo: PublishLogRepository,
-        auth_service: AuthService,
-        queue: JobQueue,
-    ): ...
-
-    # --- Publishing ---
-
-    async def publish_now(
-        self, user_id: uuid.UUID, request: PublishNowRequest
-    ) -> PublishResult: ...
-
-    async def schedule_post(
-        self, user_id: uuid.UUID, request: SchedulePostRequest
-    ) -> ScheduledPost: ...
-
-    async def cancel_scheduled(
-        self, user_id: uuid.UUID, schedule_id: uuid.UUID
-    ) -> None: ...
-
-    async def publish_scheduled(
-        self, schedule_id: uuid.UUID
-    ) -> PublishResult: ...      # Called by worker
-
-    # --- Schedule Management ---
-
-    async def get_schedule(
-        self, user_id: uuid.UUID, filters: ScheduleFilter
-    ) -> PaginatedResult[ScheduledPost]: ...
-
-    async def get_upcoming(
-        self, user_id: uuid.UUID, limit: int = 10
-    ) -> list[ScheduledPost]: ...
-
-    async def get_publish_history(
-        self, user_id: uuid.UUID, filters: PublishHistoryFilter
-    ) -> PaginatedResult[PublishedPost]: ...
-
-    # --- Platform Connection ---
-
-    async def connect_platform(
-        self, user_id: uuid.UUID, platform: str, tokens: PlatformTokenData
-    ) -> ConnectionResult: ...
-
-    async def disconnect_platform(
-        self, user_id: uuid.UUID, platform: str
-    ) -> None: ...
-
-    async def get_connection_status(
-        self, user_id: uuid.UUID
-    ) -> dict[str, PlatformConnectionStatus]: ...
-
-    async def validate_connections(
-        self, user_id: uuid.UUID
-    ) -> dict[str, bool]: ...
-
-    # --- Platform-Specific ---
-
-    async def get_platform_limits(
-        self, platform: str
-    ) -> PlatformLimits: ...
-```
-
-```python
-# MODULE: platform_service/adapter_base.py
-
-class PlatformAdapter(ABC):
-    """
-    Interface every platform adapter must implement.
-    Adding a new platform = implementing this class.
-    """
-
-    @property
-    @abstractmethod
-    def platform_name(self) -> str: ...
-
-    @abstractmethod
-    async def format_post(
-        self, draft: ContentDraft, params: FormatParams | None = None
-    ) -> PlatformPost: ...
-
-    @abstractmethod
-    async def publish(
-        self, post: PlatformPost, tokens: PlatformTokenData
-    ) -> PublishResponse: ...
-
-    @abstractmethod
-    async def fetch_analytics(
-        self, tokens: PlatformTokenData, since: datetime
-    ) -> PlatformAnalytics: ...
-
-    @abstractmethod
-    async def validate_connection(
-        self, tokens: PlatformTokenData
-    ) -> ConnectionStatus: ...
-
-    @abstractmethod
-    async def get_rate_limits(self) -> RateLimitInfo: ...
-
-
-class LinkedInAdapter(PlatformAdapter):
-    """LinkedIn-specific implementation."""
-
-    platform_name = "linkedin"
-
-    async def format_post(
-        self, draft: ContentDraft, params: FormatParams | None = None
-    ) -> LinkedInPost: ...
-
-    async def publish(
-        self, post: LinkedInPost, tokens: PlatformTokenData
-    ) -> PublishResponse: ...
-
-    async def fetch_analytics(
-        self, tokens: PlatformTokenData, since: datetime
-    ) -> LinkedInAnalytics: ...
-
-    async def validate_connection(
-        self, tokens: PlatformTokenData
-    ) -> ConnectionStatus: ...
-
-    async def get_rate_limits(self) -> RateLimitInfo: ...
-
-
-class TwitterAdapter(PlatformAdapter):
-    """X/Twitter-specific implementation. Phase 2."""
-
-    platform_name = "twitter"
-
-    async def format_post(
-        self, draft: ContentDraft, params: FormatParams | None = None
-    ) -> TwitterThread: ...
-
-    async def publish(
-        self, post: TwitterThread, tokens: PlatformTokenData
-    ) -> PublishResponse: ...
-
-    async def fetch_analytics(
-        self, tokens: PlatformTokenData, since: datetime
-    ) -> TwitterAnalytics: ...
-
-    async def validate_connection(
-        self, tokens: PlatformTokenData
-    ) -> ConnectionStatus: ...
-
-    async def get_rate_limits(self) -> RateLimitInfo: ...
-```
-
-```python
-# MODULE: platform_service/models.py
-
-class PublishNowRequest(BaseModel):
-    draft_id: uuid.UUID
-    platform: str
-    format_params: FormatParams | None = None
-
-class SchedulePostRequest(BaseModel):
-    draft_id: uuid.UUID
-    platform: str
-    scheduled_for: datetime
-    format_params: FormatParams | None = None
-
-class FormatParams(BaseModel):
-    add_hashtags: bool = True
-    add_call_to_action: bool = True
-    max_hashtags: int = 3
-    include_link: bool = False
-    platform_specific: dict[str, Any] = {}
-
-class PublishResult(BaseModel):
-    success: bool
-    platform: str
-    external_post_id: str | None
-    post_url: str | None
-    published_at: datetime
-    attempt_count: int
-    error_message: str | None
-
-class ScheduledPost(BaseModel):
-    id: uuid.UUID
-    draft_id: uuid.UUID
-    user_id: uuid.UUID
-    platform: str
-    scheduled_for: datetime
-    status: Literal["pending", "published", "failed", "cancelled"]
-    external_post_id: str | None
-    created_at: datetime
-    updated_at: datetime
-
-class ConnectionResult(BaseModel):
-    success: bool
-    platform: str
-    external_user_id: str | None
-    connected_at: datetime
-
-class PlatformConnectionStatus(BaseModel):
-    is_connected: bool
-    external_user_id: str | None
-    connected_at: datetime | None
-    last_sync_at: datetime | None
-    token_expires_at: datetime | None
-    is_token_valid: bool
-
-class PlatformLimits(BaseModel):
-    daily_post_limit: int
-    daily_analytics_calls: int
-    post_length_max: int
-    post_length_min: int
-    media_limit_mb: int | None
-    hashtag_limit: int | None
-```
-
-### 2.9 Analytics Service
-
-**Responsibility:** Engagement metrics, content scoring, reporting.
-
-```python
-# MODULE: analytics_service/service.py
-
-class AnalyticsService:
-    """
-    Aggregates and computes content analytics across platforms.
-    Pure data processing — no external API calls.
-    """
-
-    def __init__(
-        self,
-        analytics_repo: AnalyticsRepository,
-        platform_service: PlatformService,
-        cache: CacheService,
-    ): ...
-
-    # --- Overview ---
-
-    async def get_overview(
-        self, user_id: uuid.UUID, period: AnalyticsPeriod
-    ) -> AnalyticsOverview: ...
-
-    # --- Post Analytics ---
-
-    async def get_post_performance(
-        self, user_id: uuid.UUID, post_id: uuid.UUID
-    ) -> PostPerformance: ...
-
-    async def get_posts_list(
-        self, user_id: uuid.UUID, filters: PostAnalyticsFilter
-    ) -> PaginatedResult[PostPerformance]: ...
-
-    async def get_top_posts(
-        self, user_id: uuid.UUID, period: AnalyticsPeriod, limit: int = 10
-    ) -> list[PostPerformance]: ...
-
-    # --- Engagement ---
-
-    async def get_engagement_trends(
-        self, user_id: uuid.UUID, period: AnalyticsPeriod
-    ) -> EngagementTrends: ...
-
-    async def get_audience_growth(
-        self, user_id: uuid.UUID, period: AnalyticsPeriod
-    ) -> AudienceGrowth: ...
-
-    # --- Content Scoring ---
-
-    async def get_content_score(
-        self, user_id: uuid.UUID, draft_id: uuid.UUID
-    ) -> ContentScore: ...
-
-    async def get_best_performing_formats(
-        self, user_id: uuid.UUID, period: AnalyticsPeriod
-    ) -> list[FormatPerformance]: ...
-
-    # --- Sync ---
-
-    async def sync_platform_analytics(
-        self, user_id: uuid.UUID, platform: str
-    ) -> SyncAnalyticsResult: ...
-
-    async def get_last_sync_status(
-        self, user_id: uuid.UUID
-    ) -> dict[str, datetime | None]: ...
-```
-
-```python
-# MODULE: analytics_service/models.py
-
-class AnalyticsPeriod(BaseModel):
-    start_date: date
-    end_date: date
-    granularity: Literal["day", "week", "month"]
-
-class AnalyticsOverview(BaseModel):
-    total_posts: int
-    total_impressions: int
-    total_engagement: int
-    avg_engagement_rate: float
-    follower_count: int
-    follower_growth: int
-    top_post: PostPerformance | None
-    period_comparison: PeriodComparison | None
-
-class PeriodComparison(BaseModel):
-    posts_change_percent: float
-    impressions_change_percent: float
-    engagement_change_percent: float
-    followers_change_percent: float
-    engagement_rate_change: float     # Absolute percentage point change
-
-class PostPerformance(BaseModel):
-    post_id: uuid.UUID
-    external_post_id: str
-    title: str
-    platform: str
-    published_at: datetime
-    impressions: int
-    engagement_count: int
-    engagement_rate: float            # engagement / impressions
-    likes: int
-    comments: int
-    shares: int
-    clicks: int | None
-    follower_gain: int | None
-    content_category: str | None
-    is_top_performer: bool
-
-class EngagementTrends(BaseModel):
-    daily_avg_engagement: list[TimeSeriesPoint]
-    weekly_avg_engagement: list[TimeSeriesPoint]
-    best_day: str                      # Day of week
-    best_time: str                     # Hour of day
-    trend_direction: Literal["increasing", "stable", "declining"]
-
-class TimeSeriesPoint(BaseModel):
-    date: datetime
-    value: float
-
-class AudienceGrowth(BaseModel):
-    current_followers: int
-    growth_by_period: list[TimeSeriesPoint]
-    growth_rate: float                 # Percentage
-    top_follower_sources: list[str] | None
-
-class ContentScore(BaseModel):
-    overall: float
-    engagement_prediction: float
-    quality_score: float
-    style_consistency: float
-    timeliness_score: float
-    category_performance: float       # How this category typically performs
-
-class FormatPerformance(BaseModel):
-    content_category: ContentCategory
-    avg_engagement_rate: float
-    total_posts: int
-    best_performing_example: PostPerformance | None
-    recommendation: str | None
-```
-
-### 2.10 Brief Service
-
-**Responsibility:** Daily/weekly content brief generation and delivery.
-
-```python
-# MODULE: brief_service/service.py
-
-class BriefService:
-    """
-    Generates and delivers personalized content briefs.
-    Orchestrates context gathering, idea generation, and notification.
-    """
-
-    def __init__(
-        self,
-        content_engine: ContentEngine,
-        profile_service: ProfileService,
-        notification_service: NotificationService,
-        brief_repo: BriefRepository,
-        cache: CacheService,
-    ): ...
-
-    # --- Brief Generation ---
-
-    async def generate_briefs(
-        self
-    ) -> int:    # Called by cron. Returns count of briefs generated.
-        """
-        Scheduled job. Iterates active users due for a brief.
-        """
-
-    async def generate_user_brief(
-        self, user_id: uuid.UUID
-    ) -> ContentBrief: ...
-
-    async def get_today_brief(
-        self, user_id: uuid.UUID
-    ) -> ContentBrief | None: ...
-
-    async def get_brief_by_date(
-        self, user_id: uuid.UUID, brief_date: date
-    ) -> ContentBrief | None: ...
-
-    async def acknowledge_brief(
-        self, user_id: uuid.UUID, brief_id: uuid.UUID
-    ) -> None: ...
-
-    # --- Brief Preferences ---
-
-    async def get_brief_schedule(
-        self, user_id: uuid.UUID
-    ) -> BriefSchedule: ...
-
-    async def update_brief_schedule(
-        self, user_id: uuid.UUID, request: UpdateBriefScheduleRequest
-    ) -> BriefSchedule: ...
-
-    # --- Internal ---
-
-    async def _get_users_due_for_brief(self) -> list[uuid.UUID]: ...
-    async def _should_generate_brief(self, user_id: uuid.UUID) -> bool: ...
-    async def _notify_brief_ready(self, user_id: uuid.UUID, brief_id: uuid.UUID) -> None: ...
-```
-
-```python
-# MODULE: brief_service/models.py
-
-class ContentBrief(BaseModel):
-    id: uuid.UUID
-    user_id: uuid.UUID
-    brief_date: date
-    ideas: list[BriefIdea]
-    context_summary: str
-    signal_quality: SignalQuality
-    generated_at: datetime
-    viewed_at: datetime | None
-
-class BriefIdea(BaseModel):
-    id: uuid.UUID
-    title: str
-    description: str
-    category: ContentCategory
-    relevance_score: float
-    novelty_score: float
-    source_type: Literal["github", "knowledge", "trend", "mixed"]
-    source_detail: str | None
-
-class SignalQuality(BaseModel):
-    has_github: bool
-    has_kb: bool
-    has_trends: bool
-    idea_count: int
-    quality_label: Literal["excellent", "good", "fair", "low"]
-    message: str                   # User-facing quality note
-
-class BriefSchedule(BaseModel):
-    frequency: Literal["daily", "weekdays", "mon_wed_fri", "weekly"]
-    time_of_day: str               # HH:MM in user's timezone
-    timezone: str
-    enabled: bool
-```
-
-### 2.11 Notification Service
-
-**Responsibility:** Multi-channel notification delivery.
-
-```python
-# MODULE: notification_service/service.py
-
-class NotificationService:
-    """
-    Sends notifications across channels (in-app, email, push).
-    Templates rendered server-side. Delivery async via queue.
-    """
-
-    def __init__(
-        self,
-        email_client: EmailClient,
-        template_renderer: TemplateRenderer,
-        notif_repo: NotificationRepository,
-        queue: JobQueue,
-    ): ...
-
-    # --- Send ---
-
-    async def send_notification(
-        self, user_id: uuid.UUID, notification: NotificationRequest
-    ) -> NotificationResult: ...
-
-    async def send_bulk(
-        self, notifications: list[NotificationRequest]
-    ) -> list[NotificationResult]: ...
-
-    # --- Templates ---
-
-    async def render_template(
-        self, template_name: str, context: dict[str, Any]
-    ) -> RenderedTemplate: ...
-
-    # --- History ---
-
-    async def get_notification_history(
-        self, user_id: uuid.UUID, limit: int = 50
-    ) -> list[NotificationLog]: ...
-
-    async def mark_read(
-        self, user_id: uuid.UUID, notification_id: uuid.UUID
-    ) -> None: ...
-
-    async def mark_all_read(
-        self, user_id: uuid.UUID
-    ) -> None: ...
-
-    async def get_unread_count(
-        self, user_id: uuid.UUID
-    ) -> int: ...
-
-    # --- Preferences ---
-
-    async def get_preferences(
-        self, user_id: uuid.UUID
-    ) -> NotificationPreferences: ...
-
-    async def update_preferences(
-        self, user_id: uuid.UUID, request: UpdateNotificationPreferencesRequest
-    ) -> NotificationPreferences: ...
-```
-
-```python
-# MODULE: notification_service/models.py
-
-class NotificationRequest(BaseModel):
-    user_id: uuid.UUID
-    notification_type: NotificationType
-    channel: Literal["in_app", "email", "push"]
-    title: str
-    body: str
-    action_url: str | None
-    metadata: dict[str, Any] = {}
-
-class NotificationType(str, Enum):
-    BRIEF_READY = "brief_ready"
-    DRAFT_READY = "draft_ready"
-    POST_PUBLISHED = "post_published"
-    POST_FAILED = "post_failed"
-    SCHEDULE_REMINDER = "schedule_reminder"
-    ENGAGEMENT_MILESTONE = "engagement_milestone"
-    WEEKLY_DIGEST = "weekly_digest"
-    STYLE_MILESTONE = "style_milestone"
-
-class NotificationResult(BaseModel):
-    notification_id: uuid.UUID
-    channel: str
-    delivered: bool
-    error_message: str | None
-
-class NotificationPreferences(BaseModel):
-    email_digest_frequency: Literal["never", "daily", "weekly"] = "daily"
-    brief_notifications: bool = True
-    publish_notifications: bool = True
-    engagement_notifications: bool = True
-    marketing_emails: bool = False
+### 2.2 Cloud Function Input Schemas (Zod)
+
+```typescript
+// File: functions/src/common/schemas.ts
+
+import { z } from 'zod';
+
+// ── Profile ──
+export const UpdateProfileSchema = z.object({
+  displayName: z.string().min(1).max(100).optional(),
+  bio: z.string().max(1000).optional(),
+  photoURL: z.string().url().optional(),
+  expertiseAreas: z.array(z.object({
+    name: z.string().min(1).max(50),
+    category: z.string().max(30),
+    priority: z.number().int().min(0).max(10),
+    keywords: z.array(z.string().max(30)).max(20),
+  })).max(10).optional(),
+});
+
+export const UpdatePreferencesSchema = z.object({
+  postingCadence: z.enum(['daily', '3x_week', 'weekly', 'custom']).optional(),
+  timezone: z.string().optional(),
+  briefHour: z.number().int().min(0).max(23).optional(),
+  defaultTone: z.enum(['conversational', 'professional', 'technical', 'opinionated']).optional(),
+  defaultLength: z.enum(['short', 'medium', 'long']).optional(),
+  digestEnabled: z.boolean().optional(),
+});
+
+// ── Knowledge Base ──
+export const CreateKnowledgeItemSchema = z.object({
+  url: z.string().url().optional(),
+  title: z.string().min(1).max(500),
+  note: z.string().max(5000).optional(),
+  tags: z.array(z.string().max(30)).max(20).default([]),
+  sourceType: z.enum(['link', 'note', 'paper', 'code', 'video', 'podcast']).default('link'),
+});
+
+export const SearchKnowledgeSchema = z.object({
+  query: z.string().min(1).max(200),
+  limit: z.number().int().min(1).max(50).default(10),
+  cursor: z.string().optional(),
+  tags: z.array(z.string().max(30)).max(20).optional(),
+  sourceTypes: z.array(z.enum(['link', 'note', 'paper', 'code', 'video', 'podcast'])).optional(),
+});
+
+// ── Content ──
+export const GenerateIdeasSchema = z.object({
+  briefId: z.string().optional(),
+  count: z.number().int().min(1).max(10).default(5),
+  tone: z.enum(['conversational', 'professional', 'technical', 'opinionated']).optional(),
+  length: z.enum(['short', 'medium', 'long']).optional(),
+  categories: z.array(z.enum(['tutorial', 'opinion', 'project_update', 'paper_summary', 'industry_commentary'])).optional(),
+});
+
+export const GenerateDraftSchema = z.object({
+  idea: z.object({
+    title: z.string().min(1).max(200),
+    description: z.string().min(1).max(2000),
+    category: z.enum(['tutorial', 'opinion', 'project_update', 'paper_summary', 'industry_commentary']),
+    contextSources: z.array(z.string()).optional(),
+  }),
+  tone: z.enum(['conversational', 'professional', 'technical', 'opinionated']).optional(),
+  length: z.enum(['short', 'medium', 'long']).optional(),
+});
+
+export const UpdateDraftSchema = z.object({
+  draftId: z.string().min(1),
+  body: z.string().min(1).max(10000),
+});
+
+export const RateDraftSchema = z.object({
+  draftId: z.string().min(1),
+  score: z.number().int().min(1).max(5),
+  dimensions: z.object({
+    accuracy: z.number().int().min(1).max(5).optional(),
+    readability: z.number().int().min(1).max(5).optional(),
+    authenticity: z.number().int().min(1).max(5).optional(),
+    engagement: z.number().int().min(1).max(5).optional(),
+  }).optional(),
+  comment: z.string().max(1000).optional(),
+});
+
+export const SchedulePostSchema = z.object({
+  draftId: z.string().min(1),
+  platform: z.enum(['linkedin']),  // expand: 'twitter', 'blog'
+  scheduledFor: z.string().datetime(),  // ISO 8601
+});
+
+// ── Connections ──
+export const ConnectLinkedInSchema = z.object({
+  code: z.string().min(1),  // OAuth authorization code
+  redirectUri: z.string().url(),
+});
+
+export const ConnectGitHubSchema = z.object({
+  code: z.string().min(1),  // OAuth authorization code
+});
 ```
 
 ---
 
-## 3. Data Contracts
+## 3. Cloud Function Interfaces
 
-### 3.1 Common Shared Models
+### 3.1 Profile Functions
 
-```python
-# MODULE: shared/models.py
+```typescript
+// File: functions/src/profile/index.ts
 
-class PaginatedResult(BaseModel, Generic[T]):
-    items: list[T]
-    total: int
-    page: int
-    page_size: int
-    has_more: bool
+import { onCall } from 'firebase-functions/v2/https';
+import { z } from 'zod';
+import { UpdateProfileSchema, UpdatePreferencesSchema } from '../common/schemas';
+import { HttpsError } from 'firebase-functions/v2/https';
 
-class ErrorResponse(BaseModel):
-    code: str
-    message: str
-    details: dict[str, Any] | None = None
-    request_id: str | None = None
+// ── getMyProfile ──
+// Returns the authenticated user's profile document.
+export const getMyProfile = onCall(async (request) => {
+  // auth automatically verified by onCall
+  const uid = request.auth!.uid;
 
-class ValidationError(BaseModel):
-    field: str
-    message: str
-    code: str
+  const profile = await getFirestore()
+    .collection('users').doc(uid)
+    .get();
 
-class HealthCheckResult(BaseModel):
-    status: Literal["healthy", "degraded", "unhealthy"]
-    version: str
-    uptime_seconds: float
-    dependencies: dict[str, DependencyHealth]
+  if (!profile.exists) {
+    throw new HttpsError('not-found', 'Profile not found. User may not be onboarded.');
+  }
 
-class DependencyHealth(BaseModel):
-    status: Literal["healthy", "degraded", "unhealthy"]
-    latency_ms: float
-    last_error: str | None
+  return {
+    success: true,
+    data: profile.data(),
+  };
+});
+
+// ── updateMyProfile ──
+// Updates profile fields. Merges into existing document.
+export const updateMyProfile = onCall(async (request) => {
+  const uid = request.auth!.uid;
+  const input = UpdateProfileSchema.parse(request.data);
+
+  await getFirestore()
+    .collection('users').doc(uid)
+    .update({
+      ...input,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+  return { success: true };
+});
+
+// ── updateMyPreferences ──
+// Updates user preferences (posting cadence, timezone, defaults).
+export const updateMyPreferences = onCall(async (request) => {
+  const uid = request.auth!.uid;
+  const input = UpdatePreferencesSchema.parse(request.data);
+
+  await getFirestore()
+    .collection('users').doc(uid)
+    .update({
+      preferences: input,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+  return { success: true };
+});
 ```
 
-### 3.2 LLM Client Interface
+### 3.2 Knowledge Base Functions
 
-```python
-# MODULE: shared/llm_client.py
+```typescript
+// File: functions/src/knowledge/index.ts
 
-class LLMClient(ABC):
-    """
-    Abstract interface for all LLM providers.
-    Every provider implements this interface.
-    """
+import { onCall } from 'firebase-functions/v2/https';
+import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { CreateKnowledgeItemSchema, SearchKnowledgeSchema } from '../common/schemas';
 
-    @abstractmethod
-    async def complete(
-        self, request: CompletionRequest
-    ) -> CompletionResponse: ...
+// ── createKnowledgeItem ──
+// Creates a new knowledge item. Triggers embedding generation via Firestore trigger.
+export const createKnowledgeItem = onCall(async (request) => {
+  const uid = request.auth!.uid;
+  const input = CreateKnowledgeItemSchema.parse(request.data);
 
-    @abstractmethod
-    async def complete_stream(
-        self, request: CompletionRequest
-    ) -> AsyncIterator[CompletionChunk]: ...
+  const docRef = await getFirestore()
+    .collection('users').doc(uid)
+    .collection('knowledge')
+    .add({
+      ...input,
+      userId: uid,
+      embeddingStatus: 'pending',
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 
-    @abstractmethod
-    async def embed(
-        self, input: str | list[str], model: str | None = None
-    ) -> EmbeddingResponse: ...
+  return { success: true, data: { id: docRef.id } };
+});
 
-    @abstractmethod
-    async def estimate_cost(
-        self, request: CompletionRequest
-    ) -> CostEstimate: ...
+// ── searchKnowledge ──
+// Hybrid search (keyword + semantic) across the user's knowledge base.
+export const searchKnowledge = onCall(async (request) => {
+  const uid = request.auth!.uid;
+  const input = SearchKnowledgeSchema.parse(request.data);
 
+  // 1. Generate embedding for query
+  const embedding = await getEmbeddingService().embed(input.query);
 
-class CompletionRequest(BaseModel):
-    model: str
-    system_prompt: str | None = None
-    messages: list[ChatMessage]
-    temperature: float = 0.7
-    max_tokens: int = 2048
-    stop_sequences: list[str] = []
-    response_format: ResponseFormat | None = None
+  // 2. Semantic search via pgvector
+  const semanticResults = await getSupabase().rpc('match_knowledge', {
+    query_embedding: embedding,
+    match_threshold: 0.7,
+    match_count: input.limit * 2,
+    filter_user_id: uid,
+  });
 
-class ChatMessage(BaseModel):
-    role: Literal["system", "user", "assistant"]
-    content: str
+  // 3. Keyword search via pgvector FTS
+  const keywordResults = await getSupabase().rpc('search_knowledge_fts', {
+    query_text: input.query,
+    result_limit: input.limit * 2,
+    filter_user_id: uid,
+  });
 
-class ResponseFormat(BaseModel):
-    type: Literal["text", "json_object"] = "text"
+  // 4. RRF merge
+  const fused = reciprocalRankFusion(semanticResults, keywordResults, input.limit, 60);
 
-class CompletionResponse(BaseModel):
-    content: str
-    finish_reason: Literal["stop", "length", "tool_use"]
-    usage: TokenUsage
-    model: str
-    latency_ms: int
+  return { success: true, data: { items: fused } };
+});
 
-class TokenUsage(BaseModel):
-    prompt_tokens: int
-    completion_tokens: int
-    total_tokens: int
+// ── Firestore Trigger: onKnowledgeItemCreated ──
+// Generates embedding when a new knowledge item is created.
+export const onKnowledgeItemCreated = onDocumentCreated(
+  'users/{userId}/knowledge/{itemId}',
+  async (event) => {
+    const item = event.data?.data();
+    if (!item || item.embeddingStatus === 'completed') return;
 
-class CostEstimate(BaseModel):
-    estimated_prompt_tokens: int
-    estimated_completion_tokens: int
-    estimated_cost: float
-    model: str
+    try {
+      // Generate summary if the item has extracted text
+      if (item.extractedText && !item.summary) {
+        const summary = await getGroqService().summarize(item.extractedText);
+        await event.data?.ref.update({ summary, embeddingStatus: 'summarized' });
+      }
+
+      // Generate embedding
+      const text = `${item.title}\n${item.summary || ''}\n${item.tags?.join(', ') || ''}`;
+      const embedding = await getEmbeddingService().embed(text);
+
+      // Store in pgvector
+      await getSupabase().from('knowledge_embeddings').upsert({
+        user_id: event.params.userId,
+        knowledge_item_id: event.params.itemId,
+        embedding,
+        text,
+        created_at: new Date().toISOString(),
+      });
+
+      await event.data?.ref.update({ embeddingStatus: 'completed' });
+    } catch (error) {
+      console.error(`Embedding failed for item ${event.params.itemId}:`, error);
+      await event.data?.ref.update({ embeddingStatus: 'failed' });
+    }
+  }
+);
 ```
 
-### 3.3 Embedding Service Interface
+### 3.3 Content Engine Functions
 
-```python
-# MODULE: shared/embedding_service.py
+```typescript
+// File: functions/src/content/index.ts
 
-class EmbeddingService:
-    """
-    Manages embedding generation and vector similarity operations.
-    Abstracts whether embeddings come from LLM API or local model.
-    """
+import { onCall } from 'firebase-functions/v2/https';
+import { GenerateIdeasSchema, GenerateDraftSchema, UpdateDraftSchema, RateDraftSchema, SchedulePostSchema } from '../common/schemas';
 
-    def __init__(
-        self,
-        llm_client: LLMClient,
-        cache: CacheService,
-    ): ...
+// ── generateIdeas ──
+// Generates content ideas from user context (GitHub + KB + trends + style).
+export const generateIdeas = onCall(async (request) => {
+  const uid = request.auth!.uid;
+  const input = GenerateIdeasSchema.parse(request.data);
 
-    async def embed_text(
-        self, text: str, model: str = "default"
-    ) -> list[float]: ...
+  // 1. Aggregate context (parallel)
+  const [githubActivity, recentKnowledge, trendingTopics, styleProfile] = await Promise.all([
+    getGitHubService().getRecentActivity(uid),
+    getKnowledgeService().getRecentItems(uid),
+    getTrendService().getRelevant(uid),
+    getStyleService().getProfile(uid),
+  ]);
 
-    async def embed_texts(
-        self, texts: list[str], model: str = "default"
-    ) -> list[list[float]]: ...
+  const context: ContentContext = {
+    recentCommits: githubActivity.commits,
+    recentPRs: githubActivity.prs,
+    topLanguages: githubActivity.languages,
+    topTags: recentKnowledge.topTags,
+    recentKnowledge: recentKnowledge.items,
+    trendingTopics,
+    expertiseAreas: githubActivity.expertise,
+  };
 
-    async def cosine_similarity(
-        self, a: list[float], b: list[float]
-    ) -> float: ...
+  // 2. Generate ideas via Groq
+  const ideas = await getContentPipeline().generateIdeas(context, styleProfile, input);
 
-    async def batch_similarity(
-        self, query: list[float], candidates: list[list[float]]
-    ) -> list[float]: ...
+  return { success: true, data: { ideas } };
+});
+
+// ── generateDraft ──
+// Generates a full draft from an idea. Runs the 5-stage pipeline.
+export const generateDraft = onCall(async (request) => {
+  const uid = request.auth!.uid;
+  const input = GenerateDraftSchema.parse(request.data);
+
+  const styleProfile = await getStyleService().getProfile(uid);
+  const pipeline = getContentPipeline();
+
+  const draft = await pipeline.execute({
+    idea: input.idea,
+    styleProfile,
+    tone: input.tone || 'professional',
+    length: input.length || 'medium',
+  });
+
+  // Save to Firestore
+  const docRef = await getFirestore()
+    .collection('users').doc(uid)
+    .collection('drafts')
+    .add({
+      ...draft,
+      userId: uid,
+      status: 'draft',
+      tone: input.tone || 'professional',
+      length: input.length || 'medium',
+      contentType: input.idea.category,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+  return {
+    success: true,
+    data: { draftId: docRef.id, ...draft },
+  };
+});
+
+// ── schedulePost ──
+// Approves and schedules a draft for publishing.
+export const schedulePost = onCall(async (request) => {
+  const uid = request.auth!.uid;
+  const input = SchedulePostSchema.parse(request.data);
+
+  // Update draft status
+  await getFirestore()
+    .collection('users').doc(uid)
+    .collection('drafts').doc(input.draftId)
+    .update({ status: 'scheduled', updatedAt: FieldValue.serverTimestamp() });
+
+  // Create schedule document (triggers onScheduleWrite → enqueues publish task)
+  await getFirestore()
+    .collection('users').doc(uid)
+    .collection('schedule')
+    .add({
+      draftId: input.draftId,
+      userId: uid,
+      platform: input.platform,
+      scheduledFor: Timestamp.fromDate(new Date(input.scheduledFor)),
+      status: 'pending',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+  return { success: true };
+});
+
+// ── rateDraft ──
+// Records user rating and updates style profile.
+export const rateDraft = onCall(async (request) => {
+  const uid = request.auth!.uid;
+  const input = RateDraftSchema.parse(request.data);
+
+  // Save rating
+  await getFirestore()
+    .collection('users').doc(uid)
+    .collection('drafts').doc(input.draftId)
+    .update({
+      rating: { score: input.score, dimensions: input.dimensions, comment: input.comment },
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+  // Update style profile EMA
+  await getStyleService().recordRating(uid, input);
+
+  return { success: true };
+});
 ```
 
-### 3.4 Cache Service Interface
+### 3.4 Pipeline — Internal Architecture
 
-```python
-# MODULE: shared/cache_service.py
+```typescript
+// File: functions/src/content/pipeline.ts
 
-class CacheService:
-    """
-    Unified cache interface backed by Redis.
-    Provides read-through, write-through, and TTL-based caching.
-    """
+interface PipelineInput {
+  idea: {
+    title: string;
+    description: string;
+    category: ContentType;
+    contextSources?: string[];
+  };
+  styleProfile: StyleProfile;
+  tone: ContentTone;
+  length: ContentLength;
+}
 
-    def __init__(self, redis_client: Redis): ...
+interface PipelineOutput {
+  title: string;
+  body: string;
+  qualityScore: number;
+  qualityVerdict: 'pass' | 'warn' | 'fail';
+  readabiltyScore: number;
+  wordCount: number;
+  metadata: {
+    modelsUsed: string[];
+    stageTimings: Record<string, number>;
+    retries: number;
+  };
+}
 
-    async def get(
-        self, key: str
-    ) -> bytes | None: ...
+class ContentPipeline {
+  constructor(
+    private groq: GroqService,
+    private styleService: StyleService,
+  ) {}
 
-    async def set(
-        self, key: str, value: bytes, ttl: int | None = None
-    ) -> None: ...
+  async execute(input: PipelineInput): Promise<PipelineOutput> {
+    const timings: Record<string, number> = {};
 
-    async def delete(
-        self, key: str
-    ) -> None: ...
+    // Stage 1: Context Assembly (algorithmic)
+    const stage1Start = Date.now();
+    const context = await this.assembleContext(input.idea);
+    timings.contextAssembly = Date.now() - stage1Start;
 
-    async def delete_pattern(
-        self, pattern: str
-    ) -> int: ...
+    // Stage 2: Idea Expansion (LLM: Llama 3.3 70B)
+    const stage2Start = Date.now();
+    const expandedIdea = await this.groq.generate({
+      model: 'llama-3.3-70b-versatile',
+      system: IDEA_GENERATION_SYSTEM_PROMPT,
+      messages: [
+        { role: 'user', content: this.buildIdeaPrompt(context, input.styleProfile) },
+      ],
+      temperature: 0.7,
+      maxTokens: 800,
+    });
+    timings.ideaGeneration = Date.now() - stage2Start;
 
-    async def get_or_compute(
-        self, key: str, ttl: int, factory: Callable[[], Awaitable[bytes]]
-    ) -> bytes: ...
+    // Stage 3: Draft Composition (LLM: Qwen3 32B)
+    const stage3Start = Date.now();
+    let draft = await this.groq.generate({
+      model: 'qwen-3-32b',
+      system: DRAFT_COMPOSITION_SYSTEM_PROMPT,
+      messages: [
+        { role: 'user', content: this.buildDraftPrompt(expandedIdea, input) },
+      ],
+      temperature: 0.8,
+      maxTokens: 2048,
+    });
+    timings.draftComposition = Date.now() - stage3Start;
 
-    async def exists(
-        self, key: str
-    ) -> bool: ...
+    // Stage 4: Style Refinement (algorithmic)
+    const stage4Start = Date.now();
+    draft = this.styleService.applyStyle(draft, input.styleProfile);
+    timings.styleRefinement = Date.now() - stage4Start;
+
+    // Stage 5: Quality Gate (LLM: Llama 4 Scout 17B)
+    const stage5Start = Date.now();
+    const qualityResult = await this.groq.generate({
+      model: 'llama-4-scout-17b-16e-instruct',
+      system: QUALITY_GATE_SYSTEM_PROMPT,
+      messages: [
+        { role: 'user', content: this.buildQualityPrompt(draft) },
+      ],
+      temperature: 0.3,
+      maxTokens: 500,
+    });
+    timings.qualityGate = Date.now() - stage5Start;
+
+    // Stage 5 retry logic
+    let retries = 0;
+    if (qualityResult.verdict === 'fail' && retries < 2) {
+      retries++;
+      // Regenerate draft with stricter instructions
+      draft = await this.regenerateWithFeedback(draft, qualityResult.feedback, input);
+    }
+
+    return {
+      title: expandedIdea.title,
+      body: draft,
+      qualityScore: qualityResult.score,
+      qualityVerdict: qualityResult.verdict,
+      readabiltyScore: this.calculateReadability(draft),
+      wordCount: draft.split(/\s+/).length,
+      metadata: {
+        modelsUsed: ['llama-3.3-70b-versatile', 'qwen-3-32b', 'llama-4-scout-17b-16e-instruct'],
+        stageTimings: timings,
+        retries,
+      },
+    };
+  }
+}
 ```
 
-### 3.5 Job Queue Interface
+### 3.5 Style Service
 
-```python
-# MODULE: shared/job_queue.py
+```typescript
+// File: functions/src/style/index.ts
 
-class JobQueue:
-    """
-    Async job queue backed by Redis (Arq).
-    Provides priority queuing, retry, and scheduling.
-    """
+interface StyleSignal {
+  draftId: string;
+  type: 'rating' | 'edit' | 'approval' | 'rejection';
+  data: {
+    original?: string;
+    revised?: string;
+    score?: number;
+    dimensions?: Record<string, number>;
+  };
+}
 
-    def __init__(self, redis_client: Redis): ...
+class StyleService {
+  private readonly DEFAULT_RATE = 0.3;
+  private readonly CONVERGED_RATE = 0.1;
+  private readonly CONVERGENCE_THRESHOLD = 50;
 
-    async def enqueue(
-        self, job_name: str, params: dict[str, Any],
-        priority: int = 0, scheduled_for: datetime | None = None
-    ) -> str: ...
+  async getProfile(userId: UserId): Promise<StyleProfile> {
+    const doc = await getFirestore()
+      .collection('users').doc(userId)
+      .collection('style').doc('profile')
+      .get();
 
-    async def enqueue_unique(
-        self, job_name: str, dedup_key: str, params: dict[str, Any],
-        ttl: int = 3600
-    ) -> str | None: ...
+    if (!doc.exists) {
+      return this.getDefaultProfile();
+    }
 
-    async def cancel(
-        self, job_id: str
-    ) -> bool: ...
+    return doc.data() as StyleProfile;
+  }
 
-    async def get_status(
-        self, job_id: str
-    ) -> JobStatus: ...
+  async recordRating(userId: UserId, rating: { score: number; dimensions?: Record<string, number> }): Promise<void> {
+    const profile = await this.getProfile(userId);
+    const interactionCount = await this.getInteractionCount(userId);
+    const lr = interactionCount < this.CONVERGENCE_THRESHOLD
+      ? this.DEFAULT_RATE
+      : this.CONVERGED_RATE;
 
+    // Update formality based on rating score
+    const targetFormality = this.scoreToFormality(rating.score);
+    profile.formality = lr * targetFormality + (1 - lr) * profile.formality;
 
-class JobStatus(BaseModel):
-    job_id: str
-    status: Literal["queued", "running", "completed", "failed", "cancelled"]
-    progress: float | None
-    result: dict[str, Any] | None
-    error: str | None
-    enqueued_at: datetime
-    started_at: datetime | None
-    completed_at: datetime | None
-    retry_count: int
+    // Update technical depth from rating dimensions
+    if (rating.dimensions?.accuracy) {
+      const targetDepth = rating.dimensions.accuracy / 5;
+      profile.technicalDepth = lr * targetDepth + (1 - lr) * profile.technicalDepth;
+    }
+
+    // Clamp values
+    profile.formality = Math.max(0, Math.min(1, profile.formality));
+    profile.technicalDepth = Math.max(0, Math.min(1, profile.technicalDepth));
+
+    await getFirestore()
+      .collection('users').doc(userId)
+      .collection('style').doc('profile')
+      .set(profile, { merge: true });
+  }
+
+  applyStyle(draft: string, profile: StyleProfile): string {
+    let text = draft;
+
+    // Adjust hook based on profile
+    text = this.applyHookStyle(text, profile.hookStyle);
+
+    // Adjust sentence length
+    text = this.adjustSentenceLength(text, profile.sentenceLength);
+
+    // Apply formality adjustments
+    text = this.applyFormality(text, profile.formality);
+
+    // Apply technical depth
+    text = this.applyTechnicalDepth(text, profile.technicalDepth);
+
+    return text;
+  }
+
+  private scoreToFormality(score: number): number {
+    // Map 1-5 rating → formality target
+    const map: Record<number, number> = {
+      1: 0.2,  // User disliked → try less formal
+      2: 0.3,
+      3: 0.5,
+      4: 0.7,
+      5: 0.8,  // User loved → reinforce
+    };
+    return map[score] || 0.5;
+  }
+}
 ```
 
-### 3.6 Storage Service Interface
+### 3.6 Groq Service (LLM Provider Adapter)
 
-```python
-# MODULE: shared/storage_service.py
+```typescript
+// File: functions/src/common/groq.ts
 
-class StorageService:
-    """
-    Object storage abstraction over S3/R2.
-    Used for draft history, user uploads, generated assets.
-    """
+interface GroqConfig {
+  model: string;
+  system: string;
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  temperature?: number;
+  maxTokens?: number;
+  responseFormat?: { type: 'json_object' };
+}
 
-    def __init__(self, s3_client): ...
+interface GroqResponse {
+  content: string;
+  model: string;
+  usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+}
 
-    async def upload(
-        self, key: str, data: bytes, content_type: str
-    ) -> str: ...    # Returns URL
+class GroqService {
+  private readonly baseUrl = 'https://api.groq.com/openai/v1';
+  private readonly apiKey: string;
 
-    async def download(
-        self, key: str
-    ) -> bytes: ...
+  constructor() {
+    this.apiKey = defineString('GROQ_API_KEY').value();
+  }
 
-    async def delete(
-        self, key: str
-    ) -> None: ...
+  async generate(config: GroqConfig): Promise<GroqResponse> {
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: 'system', content: config.system },
+          ...config.messages,
+        ],
+        temperature: config.temperature ?? 0.7,
+        max_completion_tokens: config.maxTokens ?? 1024,
+        ...(config.responseFormat ? { response_format: config.responseFormat } : {}),
+      }),
+    });
 
-    async def list_prefix(
-        self, prefix: str
-    ) -> list[str]: ...
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Groq API error (${response.status}): ${error}`);
+    }
 
-    async def get_signed_url(
-        self, key: str, expires_in: int = 3600
-    ) -> str: ...
+    const data = await response.json();
+    return {
+      content: data.choices[0].message.content,
+      model: data.model,
+      usage: {
+        promptTokens: data.usage.prompt_tokens,
+        completionTokens: data.usage.completion_tokens,
+        totalTokens: data.usage.total_tokens,
+      },
+    };
+  }
+
+  async generateStream(config: GroqConfig): Promise<ReadableStream> {
+    // Used by Vercel AI SDK for client-initiated streaming
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: 'system', content: config.system },
+          ...config.messages,
+        ],
+        temperature: config.temperature ?? 0.7,
+        max_completion_tokens: config.maxTokens ?? 2048,
+        stream: true,
+      }),
+    });
+
+    return response.body!;
+  }
+}
 ```
 
 ---
 
-## 4. Service Dependencies & Boundaries
+## 4. Error Handling
 
-### 4.1 Dependency Graph
+### 4.1 Exception Hierarchy
+
+```typescript
+// File: functions/src/common/errors.ts
+
+class AppError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly httpStatus: number,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = 'AppError';
+  }
+}
+
+class ValidationError extends AppError {
+  constructor(message: string, details?: unknown) {
+    super(message, 'VALIDATION_ERROR', 400, details);
+  }
+}
+
+class NotFoundError extends AppError {
+  constructor(resource: string) {
+    super(`${resource} not found`, 'NOT_FOUND', 404);
+  }
+}
+
+class RateLimitError extends AppError {
+  constructor(retryAfter: number) {
+    super('Too many requests', 'RATE_LIMITED', 429, { retryAfter });
+  }
+}
+
+class AiProviderError extends AppError {
+  constructor(provider: string, cause: unknown) {
+    super(`AI provider ${provider} returned an error`, 'AI_PROVIDER_ERROR', 502, { cause });
+  }
+}
+
+class ConfigurationError extends AppError {
+  constructor(missingKey: string) {
+    super(`Missing configuration: ${missingKey}`, 'CONFIGURATION_ERROR', 500);
+  }
+}
+```
+
+### 4.2 Error Handling Middleware
+
+```typescript
+// File: functions/src/common/middleware.ts
+
+// Wraps any onCall handler with standard error handling
+function withErrorHandling<T>(
+  handler: (request: CallableRequest) => Promise<T>,
+): (request: CallableRequest) => Promise<FunctionResponse<T>> {
+  return async (request) => {
+    const startTime = Date.now();
+
+    try {
+      const result = await handler(request);
+      logInfo('function_success', {
+        uid: request.auth?.uid,
+        duration: Date.now() - startTime,
+      });
+      return { success: true, data: result };
+    } catch (error) {
+      logError('function_error', {
+        uid: request.auth?.uid,
+        duration: Date.now() - startTime,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+
+      if (error instanceof z.ZodError) {
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid input',
+            details: error.errors,
+          },
+        };
+      }
+
+      if (error instanceof AppError) {
+        return {
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+          },
+        };
+      }
+
+      // Unknown error — log details, return generic message
+      console.error('Unhandled error:', error);
+      return {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'An unexpected error occurred',
+        },
+      };
+    }
+  };
+}
+```
+
+---
+
+## 5. Configuration & Environment
+
+### 5.1 Environment Variables
+
+```typescript
+// File: functions/src/common/config.ts
+
+import { defineString, defineSecret } from 'firebase-functions/params';
+
+// API Keys (secrets — encrypted at rest)
+export const GROQ_API_KEY = defineSecret('GROQ_API_KEY');
+export const MISTRAL_API_KEY = defineSecret('MISTRAL_API_KEY');
+export const LINKEDIN_CLIENT_ID = defineSecret('LINKEDIN_CLIENT_ID');
+export const LINKEDIN_CLIENT_SECRET = defineSecret('LINKEDIN_CLIENT_SECRET');
+export const GITHUB_APP_ID = defineSecret('GITHUB_APP_ID');
+export const GITHUB_APP_SECRET = defineSecret('GITHUB_APP_SECRET');
+
+// Supabase (for pgvector)
+export const SUPABASE_URL = defineString('SUPABASE_URL');
+export const SUPABASE_SERVICE_KEY = defineSecret('SUPABASE_SERVICE_KEY');
+
+// Configuration
+export const GROQ_MODEL_IDEAS = defineString('GROQ_MODEL_IDEAS', { default: 'llama-3.3-70b-versatile' });
+export const GROQ_MODEL_DRAFT = defineString('GROQ_MODEL_DRAFT', { default: 'qwen-3-32b' });
+export const GROQ_MODEL_QUALITY = defineString('GROQ_MODEL_QUALITY', { default: 'llama-4-scout-17b-16e-instruct' });
+export const BRIEF_SCHEDULE = defineString('BRIEF_SCHEDULE', { default: 'every 6 hours' });
+export const MAX_DRAFTS_PER_DAY = defineInt('MAX_DRAFTS_PER_DAY', { default: 10 });
+
+// Firebase project
+export const FIREBASE_REGION = defineString('FIREBASE_REGION', { default: 'us-central1' });
+```
+
+### 5.2 Secret Manager Usage
+
+```
+firebase functions:secrets:set GROQ_API_KEY
+firebase functions:secrets:set MISTRAL_API_KEY
+firebase functions:secrets:set LINKEDIN_CLIENT_ID
+firebase functions:secrets:set LINKEDIN_CLIENT_SECRET
+firebase functions:secrets:set GITHUB_APP_ID
+firebase functions:secrets:set GITHUB_APP_SECRET
+firebase functions:secrets:set SUPABASE_SERVICE_KEY
+```
+
+Secrets are injected into function runtime via `runWith({ secrets: [...] })`.
+
+---
+
+## 6. Service Dependencies
 
 ```mermaid
 flowchart TB
-  AUTH["Auth Service"]
-  PROFILE["Profile Service"]
-  GITHUB["GitHub Service"]
-  KB["Knowledge Base Service"]
-  TREND["Trend Service"]
-  CONTENT["Content Engine"]
-  STYLE["Style Service"]
-  PLATFORM["Platform Service"]
-  ANALYTICS["Analytics Service"]
-  BRIEF["Brief Service"]
-  NOTIF["Notification Service"]
+  subgraph Functions["Cloud Function Groups"]
+    PROFILE["profile"]
+    KNOWLEDGE["knowledge"]
+    CONTENT["content"]
+    PUBLISH["publish"]
+    ANALYTICS["analytics"]
+    BRIEF["briefs"]
+    STYLE["style"]
+    GITHUB["github"]
+    TREND["trend"]
+  end
 
-  CONTENT -->|"reads"| STYLE
-  CONTENT -->|"reads"| GITHUB
-  CONTENT -->|"reads"| KB
-  CONTENT -->|"reads"| TREND
-  CONTENT -->|"reads"| PROFILE
+  subgraph Services["Shared Services"]
+    GROQ_SVC["GroqService"]
+    MISTRAL_SVC["MistralService"]
+    STYLE_SVC["StyleService"]
+    EMBED_SVC["EmbeddingService"]
+    LINKEDIN_SVC["LinkedInService"]
+    GITHUB_SVC["GitHubService"]
+    SUPABASE_SVC["SupabaseService"]
+    FIRESTORE_SVC["FirestoreService"]
+  end
 
-  BRIEF -->|"orchestrates"| CONTENT
-  BRIEF -->|"triggers"| NOTIF
-  BRIEF -->|"reads"| PROFILE
+  CONTENT --> GROQ_SVC
+  CONTENT --> STYLE_SVC
+  CONTENT --> GITHUB_SVC
+  CONTENT --> FIRESTORE_SVC
 
-  PLATFORM -->|"reads tokens"| AUTH
+  BRIEF --> GROQ_SVC
+  BRIEF --> STYLE_SVC
+  BRIEF --> GITHUB_SVC
+  BRIEF --> FIRESTORE_SVC
 
-  ANALYTICS -->|"reads"| PLATFORM
-  ANALYTICS -->|"reads"| PROFILE
+  KNOWLEDGE --> MISTRAL_SVC
+  KNOWLEDGE --> SUPABASE_SVC
+  KNOWLEDGE --> FIRESTORE_SVC
 
-  NOTIF -->|"reads"| PROFILE
+  PUBLISH --> LINKEDIN_SVC
+  PUBLISH --> FIRESTORE_SVC
 
-  style CONTENT fill:#1a1a2e,stroke:#e94560,stroke-width:3px
-  style PLATFORM fill:#1a1a2e,stroke:#e94560,stroke-width:2px
-  style BRIEF fill:#1a1a2e,stroke:#e94560,stroke-width:2px
+  STYLE --> FIRESTORE_SVC
+  STYLE --> SUPABASE_SVC
+
+  GITHUB --> GITHUB_SVC
+  GITHUB --> FIRESTORE_SVC
+
+  ANALYTICS --> FIRESTORE_SVC
+
+  GROQ_SVC -->|"API Key"| GROQ[(Groq API)]
+  MISTRAL_SVC -->|"API Key"| MISTRAL[(Mistral AI)]
+  SUPABASE_SVC -->|"Service Role"| SUPABASE[(Supabase pgvector)]
+  LINKEDIN_SVC -->|"OAuth"| LINKEDIN[(LinkedIn API)]
+  GITHUB_SVC -->|"OAuth"| GITHUB[(GitHub API)]
+  FIRESTORE_SVC --> FIRESTORE[(Firestore)]
 ```
 
-**Key rules:**
-- **Content Engine** is the most-connected service (5 dependencies). It never calls external APIs directly — only through service boundaries.
-- **Platform Service** is the only service that calls external publishing APIs directly.
-- **Brief Service** orchestrates across Content Engine, Profile, and Notification — it never calls LLM or external APIs directly.
-- **Analytics Service** is a read-heavy consumer — it never writes to primary tables.
-- **No circular dependencies** — the graph is strictly acyclic.
-
-### 4.2 Service Communication Patterns
-
-| Pattern | When | How |
-|---------|------|-----|
-| **Synchronous Request-Reply** | User-facing CRUD | HTTP REST. FastAPI service call. Timeout: 5s. |
-| **Synchronous Service-to-Service** | Internal orchestration | Direct Python call (same process) or gRPC (cross-process). Timeout: 10s. |
-| **Async Job Queue** | Long-running generation | Arq. Content generation, publishing, sync. Timeout: 120s. |
-| **Cron Schedule** | Periodic batch jobs | Brief generation, GitHub sync, trend scraping. |
-| **Event Bus** | Cross-cutting notifications | In-process event bus for MVP. Redis pub/sub for Phase 2. |
-
-### 4.3 Service Boundaries & Data Ownership
-
-| Service | Owns | Reads From | Never Reads |
-|---------|------|-----------|-------------|
-| Auth | `users`, `user_auth`, `sessions`, `platform_tokens` | Nothing external | Content, KB, analytics |
-| Profile | `user_profiles`, `user_preferences`, `expertise_areas` | Auth (user existence) | Content, KB, analytics |
-| GitHub | `github_repos`, `github_commits`, `github_prs` | Auth (token) | Content, style, analytics |
-| Knowledge Base | `knowledge_items`, `knowledge_tags`, `knowledge_embeddings` | Auth (user_id) | Content, style |
-| Trend | `trending_topics`, `trend_sources` | Profile (expertise) | Content, drafts |
-| Content Engine | `content_drafts`, `draft_revisions`, `content_briefs`, `brief_ideas` | GitHub, KB, Trend, Style, Profile | Platform tokens, notifications |
-| Style | `style_profiles`, `style_signals` | Content (drafts) | Platform, analytics |
-| Platform | `scheduled_posts`, `publish_logs`, `platform_connections` | Auth (tokens), Content (drafts) | KB, GitHub, trend |
-| Analytics | `analytics_cache`, `content_scores` | Content (drafts), Platform (published) | Auth, GitHub, trend |
-| Notification | `notification_logs` | Profile (preferences) | Content, GitHub |
+**Dependency Rule:** Cloud Functions can depend on shared services via dependency injection. No function group imports another function group's internal modules. Shared services live in `functions/src/common/`.
 
 ---
 
-## 5. Internal Module Structure
+## 7. Pipeline Stage Contracts
 
-### 5.1 Content Engine (most complex service)
+### 7.1 Content Pipeline
 
-```
-content_engine/
-├── __init__.py                     # exports ContentEngine + pipeline orchestrator
-├── service.py                      # ContentEngine class
-├── exceptions.py                   # IdeaGenerationError, DraftCompositionError, QualityGateError
-├── dependencies.py                 # FastAPI dependency injection
-├── router.py                       # FastAPI router
-├── models.py                       # ContentDraft, DraftRevision, GenerationParams
-│
-├── pipeline/
-│   ├── __init__.py
-│   ├── orchestrator.py             # PipelineOrchestrator (stage sequencer)
-│   └── executor.py                 # StageExecutor (timeout, retry, metrics)
-│
-├── stages/
-│   ├── __init__.py
-│   ├── base.py                     # PipelineStage ABC
-│   ├── context_aggregator.py       # Stage 1
-│   ├── idea_generator.py           # Stage 2
-│   ├── draft_composer.py           # Stage 3
-│   ├── style_refiner.py            # Stage 4
-│   └── quality_gate.py             # Stage 5
-│
-├── prompt/
-│   ├── __init__.py
-│   ├── builder.py                  # PromptBuilder (system + user prompt construction)
-│   ├── templates/
-│   │   ├── system.py               # System prompt templates
-│   │   ├── idea_generation.py      # Idea generation prompts
-│   │   ├── draft_composition.py    # Draft composition prompts
-│   │   └── quality_evaluation.py   # Quality gate prompts
-│   └── examples.py                 # Few-shot examples
-│
-├── scoring/
-│   ├── __init__.py
-│   ├── idea_ranker.py              # Rank and score content ideas
-│   ├── novelty_checker.py          # Detect duplicate/repetitive ideas
-│   └── category_balancer.py        # Balance ideas across content categories
-│
-└── repositories/
-    ├── __init__.py
-    ├── draft_repository.py         # Draft CRUD
-    ├── brief_repository.py         # Brief CRUD
-    └── revision_repository.py      # Draft revision history
-```
+| Stage | Input | Output | Type | Failure |
+|-------|-------|--------|------|---------|
+| Context Assembly | `idea { title, description, category }` + `userId` | `ContentContext` | Algorithmic | Return partial context |
+| Idea Generation | `ContentContext` + `StyleProfile` | `ExpandedIdea[]` | LLM | Retry with simpler prompt |
+| Draft Composition | `ExpandedIdea` + config | `string (draft)` | LLM | Retry × 2, then fallback |
+| Style Refinement | `string (draft)` + `StyleProfile` | `string (adjusted)` | Algorithmic | Return raw draft |
+| Quality Gate | `string (draft)` | `{ score, verdict, feedback }` | LLM | PASS with warning |
 
-### 5.2 Style Service
+### 7.2 Brief Pipeline
 
-```
-style_service/
-├── __init__.py
-├── service.py                      # StyleService class
-├── exceptions.py                   # InsufficientSignalsError, ProfileNotFoundError
-├── router.py
-├── models.py                       # StyleProfile, StyleParameters, RatingData
-│
-├── analyzers/
-│   ├── __init__.py
-│   ├── lexical_analyzer.py         # Vocabulary frequency, term extraction
-│   ├── syntactic_analyzer.py       # Sentence structure, paragraph density
-│   ├── tonal_analyzer.py           # Formality, confidence markers, humor
-│   └── structural_analyzer.py      # Opening/closing patterns, hook detection
-│
-├── learning/
-│   ├── __init__.py
-│   ├── edit_tracker.py             # Diff-based edit learning
-│   ├── rating_learner.py           # Score-based preference learning
-│   ├── ema_updater.py              # Exponential moving average update
-│   └── import_analyzer.py          # Bulk import style analysis
-│
-└── repositories/
-    ├── __init__.py
-    ├── profile_repository.py       # Style profile CRUD
-    └── signal_repository.py        # Style signal storage
-```
+| Stage | Input | Output | Type | Failure |
+|-------|-------|--------|------|---------|
+| GitHub Context | `userId` | `{ commits, prs, languages }` | API call | Return empty context |
+| KB Context | `userId` | `{ items, tags }` | pgvector query | Return empty |
+| Trend Context | `userId` + expertise | `{ topics }` | RSS fetch | Return empty |
+| Style Profile | `userId` | `StyleProfile` | Firestore read | Return default profile |
+| Idea Generation | `AggregatedContext` | `BriefIdea[]` | LLM | Use cached brief |
+| Brief Assembly | Ideas + metadata | `ContentBrief` | Algorithmic | Always succeeds |
 
-### 5.3 Platform Service
+### 7.3 Style Pipeline
 
-```
-platform_service/
-├── __init__.py
-├── service.py                      # PlatformService class
-├── exceptions.py                   # PublishFailedError, PlatformDisconnectedError
-├── router.py
-├── models.py                       # PublishResult, ScheduledPost, ConnectionResult
-│
-├── adapters/
-│   ├── __init__.py
-│   ├── base.py                     # PlatformAdapter ABC
-│   ├── linkedin_adapter.py         # LinkedIn implementation
-│   └── twitter_adapter.py          # Twitter implementation (Phase 2)
-│
-├── scheduler/
-│   ├── __init__.py
-│   ├── scheduler.py                # Schedule management, queue enqueue
-│   └── publisher.py                # Publish execution (called by worker)
-│
-├── formatting/
-│   ├── __init__.py
-│   ├── linkedin_formatter.py       # LinkedIn-specific content formatting
-│   └── twitter_formatter.py        # Twitter thread formatting (Phase 2)
-│
-└── repositories/
-    ├── __init__.py
-    ├── schedule_repository.py      # Scheduled post CRUD
-    └── publish_log_repository.py   # Publish log CRUD
-```
-
-### 5.4 Remaining Services (simpler structure)
-
-```
-auth_service/
-├── __init__.py
-├── service.py                      # AuthService
-├── exceptions.py
-├── router.py
-├── models.py
-│
-├── oauth/
-│   ├── __init__.py
-│   ├── base.py                     # OAuthClient ABC
-│   ├── google_client.py
-│   ├── github_client.py
-│   └── linkedin_client.py
-│
-├── crypto/
-│   ├── __init__.py
-│   ├── token_encryption.py         # AES-256-GCM envelope encryption
-│   └── jwt_handler.py              # JWT creation and validation
-│
-└── repositories/
-    ├── __init__.py
-    ├── user_repository.py
-    └── token_repository.py
-
-
-knowledge_base_service/
-├── __init__.py
-├── service.py                      # KnowledgeBaseService
-├── exceptions.py
-├── router.py
-├── models.py
-│
-├── processing/
-│   ├── __init__.py
-│   ├── content_extractor.py        # URL -> readable text, PDF -> text
-│   ├── summarizer.py               # LLM-based summarization
-│   ├── tag_suggester.py            # Auto-tagging
-│   └── embedder.py                 # Embedding generation
-│
-├── search/
-│   ├── __init__.py
-│   ├── hybrid_search.py            # Full-text + vector search
-│       ├── keyword_search.py           # SQLite FTS5 full-text search
-│       └── semantic_search.py          # ChromaDB vector similarity search
-│
-└── repositories/
-    ├── __init__.py
-    ├── item_repository.py
-    └── tag_repository.py
-
-
-trend_service/
-├── __init__.py
-├── service.py                      # TrendService
-├── models.py
-│
-├── sources/
-│   ├── __init__.py
-│   ├── base.py                     # TrendSourceClient ABC
-│   ├── rss_source.py               # RSS/Atom feed ingestion
-│   ├── arxiv_source.py             # ArXiv API ingestion
-│   ├── hn_source.py                # Hacker News API ingestion
-│   └── reddit_source.py            # Reddit API ingestion
-│
-├── scoring/
-│   ├── __init__.py
-│   ├── relevance_scorer.py         # Score topics against user expertise
-│   ├── freshness_scorer.py         # Score by recency and velocity
-│   └── deduplicator.py             # Merge similar topics across sources
-│
-└── repositories/
-    ├── __init__.py
-    └── trend_repository.py
-
-
-analytics_service/
-├── __init__.py
-├── service.py                      # AnalyticsService
-├── models.py
-│
-├── aggregators/
-│   ├── __init__.py
-│   ├── engagement_aggregator.py
-│   ├── audience_aggregator.py
-│   └── content_scorer.py
-│
-└── repositories/
-    ├── __init__.py
-    └── analytics_repository.py
-
-
-notification_service/
-├── __init__.py
-├── service.py                      # NotificationService
-├── models.py
-│
-├── channels/
-│   ├── __init__.py
-│   ├── in_app.py                   # In-app notification delivery
-│   └── email.py                    # Email notification via SendGrid/Resend
-│
-├── templates/
-│   ├── __init__.py
-│   ├── renderer.py                 # Template rendering
-│   └── content/                    # Notification templates
-│       ├── brief_ready.md
-│       ├── post_published.md
-│       └── weekly_digest.md
-│
-└── repositories/
-    ├── __init__.py
-    └── notification_repository.py
-```
+| Signal | Input | Algorithm | Output |
+|--------|-------|-----------|--------|
+| Rating | `{ score, dimensions }` | EMA on formality + depth | Updated `StyleProfile` |
+| Edit | `{ original, revised }` | Diff analysis → vocab extraction | Updated preferred/avoided terms |
+| Approval | `{ draftId }` | Increment approval count | Confidence score adjustment |
+| Import | `{ postText }` | Lexical + syntactic + tonal analysis | Initial `StyleProfile` |
 
 ---
 
-## 6. Error Handling
-
-### 6.1 Exception Hierarchy
-
-```python
-# MODULE: shared/exceptions.py
-
-class BrandOSError(Exception):
-    """Base exception for all BrandOS errors."""
-    code: str = "INTERNAL_ERROR"
-    status_code: int = 500
-    message: str = "An unexpected error occurred"
-    details: dict[str, Any] | None = None
-
-    def __init__(
-        self,
-        message: str | None = None,
-        details: dict[str, Any] | None = None,
-    ):
-        self.message = message or self.message
-        self.details = details
-        super().__init__(self.message)
-
-
-# --- Auth Errors ---
-
-class AuthenticationError(BrandOSError):
-    code = "AUTHENTICATION_ERROR"
-    status_code = 401
-    message = "Authentication failed"
-
-class AuthorizationError(BrandOSError):
-    code = "FORBIDDEN"
-    status_code = 403
-    message = "Insufficient permissions"
-
-class TokenExpiredError(AuthenticationError):
-    code = "TOKEN_EXPIRED"
-    message = "Access token has expired"
-
-class TokenRevokedError(AuthenticationError):
-    code = "TOKEN_REVOKED"
-    message = "Session has been revoked"
-
-class OAuthError(BrandOSError):
-    code = "OAUTH_ERROR"
-    status_code = 502
-    message = "OAuth provider returned an error"
-
-
-# --- Validation Errors ---
-
-class ValidationError(BrandOSError):
-    code = "VALIDATION_ERROR"
-    status_code = 400
-    message = "Request validation failed"
-    validation_errors: list[FieldError]
-
-class NotFoundError(BrandOSError):
-    code = "NOT_FOUND"
-    status_code = 404
-    message = "Resource not found"
-
-class ConflictError(BrandOSError):
-    code = "CONFLICT"
-    status_code = 409
-    message = "Resource already exists"
-
-
-# --- Content Engine Errors ---
-
-class ContentGenerationError(BrandOSError):
-    code = "CONTENT_GENERATION_ERROR"
-    status_code = 500
-    message = "Failed to generate content"
-
-class IdeaGenerationError(ContentGenerationError):
-    code = "IDEA_GENERATION_FAILED"
-    message = "Failed to generate content ideas"
-
-class DraftCompositionError(ContentGenerationError):
-    code = "DRAFT_COMPOSITION_FAILED"
-    message = "Failed to compose draft"
-
-class QualityGateError(ContentGenerationError):
-    code = "QUALITY_GATE_FAILED"
-    message = "Draft failed quality gate"
-    quality_verdict: QualityVerdict | None = None
-
-class LLMTimeoutError(ContentGenerationError):
-    code = "LLM_TIMEOUT"
-    status_code = 504
-    message = "LLM provider timed out"
-
-class LLMRateLimitError(ContentGenerationError):
-    code = "LLM_RATE_LIMITED"
-    status_code = 429
-    message = "LLM rate limit exceeded"
-
-
-# --- Style Service Errors ---
-
-class StyleProfileError(BrandOSError):
-    code = "STYLE_PROFILE_ERROR"
-    status_code = 500
-    message = "Style profile operation failed"
-
-class InsufficientSignalsError(StyleProfileError):
-    code = "INSUFFICIENT_STYLE_SIGNALS"
-    status_code = 400
-    message = "Not enough style signals for reliable profiling"
-
-
-# --- Platform Errors ---
-
-class PlatformError(BrandOSError):
-    code = "PLATFORM_ERROR"
-    status_code = 502
-    message = "Platform API error"
-
-class PublishFailedError(PlatformError):
-    code = "PUBLISH_FAILED"
-    message = "Failed to publish to platform"
-    platform: str | None = None
-    external_error: str | None = None
-
-class PlatformDisconnectedError(PlatformError):
-    code = "PLATFORM_DISCONNECTED"
-    status_code = 400
-    message = "Platform account is not connected"
-
-class RateLimitExceededError(BrandOSError):
-    code = "RATE_LIMIT_EXCEEDED"
-    status_code = 429
-    message = "Too many requests"
-
-
-# --- External Dependency Errors ---
-
-class ExternalServiceError(BrandOSError):
-    code = "EXTERNAL_SERVICE_ERROR"
-    status_code = 502
-    message = "External service returned an error"
-
-class GitHubAPIError(ExternalServiceError):
-    code = "GITHUB_API_ERROR"
-    message = "GitHub API request failed"
-
-class LinkedInAPIError(ExternalServiceError):
-    code = "LINKEDIN_API_ERROR"
-    message = "LinkedIn API request failed"
-```
-
-### 6.2 Error Handling by Layer
-
-| Layer | Strategy |
-|-------|----------|
-| **FastAPI Route Handlers** | Catch all service exceptions. Return structured error response. Log with request_id. |
-| **Service Methods** | Raise typed exceptions. Never catch generic `Exception`. Context added to error details. |
-| **Pipeline Stages** | Each stage catches its own errors. Stage failure is a typed error with stage context. Orchestrator handles retry/fallback. |
-| **Async Workers** | Catch all errors. Job is retried with exponential backoff. Dead letter queue after 3 failures. Error logged with full context. |
-| **External API Calls** | Timeout-controlled. Retry with backoff. Fallback chain on failure. Circuit breaker for persistent failures. |
-
-### 6.3 Fallback Chain Implementation
-
-```python
-# MODULE: shared/fallback.py
-
-class FallbackChain:
-    """
-    Generic fallback chain for external service calls.
-    Tries providers in order until one succeeds or all fail.
-    """
-
-    def __init__(
-        self,
-        providers: list[Callable[[], Awaitable[Any]]],
-        fallback: Callable[[], Awaitable[Any]] | None = None,
-        timeout: float = 30.0,
-    ): ...
-
-    async def execute(
-        self, context: dict[str, Any]
-    ) -> FallbackResult: ...
-
-
-class FallbackResult(BaseModel):
-    success: bool
-    data: Any
-    provider_used: str
-    attempts: int
-    total_duration_ms: int
-    errors: list[ProviderError]
-
-class ProviderError(BaseModel):
-    provider: str
-    error: str
-    duration_ms: int
-```
-
----
-
-## 7. Configuration & Environment
-
-### 7.1 Configuration Model
-
-```python
-# MODULE: shared/config.py
-
-class Settings(BaseSettings):
-    # --- Application ---
-    app_name: str = "BrandOS"
-    app_version: str = "0.1.0"
-    environment: Literal["development", "staging", "production"] = "development"
-    debug: bool = False
-    log_level: str = "INFO"
-
-    # --- Database ---
-    database_url: str = "sqlite+aiosqlite:///./data/brandos.db"
-    database_pool_size: int = 5
-    database_max_overflow: int = 0
-    database_echo: bool = False
-    chromadb_path: str = "./data/chromadb"
-
-    # --- Redis ---
-    redis_url: str = "redis://localhost:6379/0"
-    redis_cache_db: int = 0
-    redis_queue_db: int = 1
-
-    # --- Object Storage ---
-    storage_endpoint_url: str | None = None
-    storage_access_key_id: str = ""
-    storage_secret_access_key: str = ""
-    storage_bucket: str = "brandos"
-    storage_region: str = "us-east-1"
-
-    # --- Auth ---
-    jwt_secret_key: str = ""
-    jwt_algorithm: str = "RS256"
-    jwt_access_token_ttl_minutes: int = 15
-    jwt_refresh_token_ttl_days: int = 7
-    encryption_key_id: str = ""          # KMS key ID for token encryption
-
-    # --- OAuth ---
-    github_client_id: str = ""
-    github_client_secret: str = ""
-    linkedin_client_id: str = ""
-    linkedin_client_secret: str = ""
-    google_client_id: str = ""
-    google_client_secret: str = ""
-
-    # --- LLM ---
-    llm_provider: Literal["anthropic", "openai"] = "anthropic"
-    llm_fallback_provider: Literal["anthropic", "openai"] = "openai"
-    anthropic_api_key: str = ""
-    anthropic_model: str = "claude-sonnet-4-20250514"
-    openai_api_key: str = ""
-    openai_model: str = "gpt-4o"
-    llm_max_retries: int = 3
-    llm_request_timeout: int = 60
-    llm_daily_budget_per_user: float = 0.50
-
-    # --- Content Engine ---
-    pipeline_idea_timeout: int = 15
-    pipeline_draft_timeout: int = 30
-    pipeline_style_timeout: int = 10
-    pipeline_quality_timeout: int = 5
-    pipeline_max_retries: int = 2
-    max_ideas_per_brief: int = 5
-    brief_generation_hour: int = 8       # Default brief generation time (UTC)
-
-    # --- GitHub ---
-    github_sync_interval_hours: int = 6
-    github_max_repos: int = 50
-    github_max_commits_per_sync: int = 100
-
-    # --- LinkedIn ---
-    linkedin_poll_interval_hours: int = 24
-    linkedin_max_posts_per_fetch: int = 100
-
-    # --- Platform ---
-    publish_retry_max_attempts: int = 3
-    publish_retry_base_delay_seconds: int = 60
-    publish_schedule_check_interval: int = 60   # Worker checks every 60s
-
-    # --- Cache ---
-    cache_profile_ttl: int = 300
-    cache_brief_ttl: int = 3600
-    cache_trending_ttl: int = 14400
-    cache_style_ttl: int = 3600
-    cache_analytics_ttl: int = 21600
-
-    # --- Rate Limiting ---
-    rate_limit_per_user_per_minute: int = 100
-    rate_limit_llm_per_user_per_minute: int = 5
-    rate_limit_publish_per_user_per_minute: int = 10
-
-    # --- Monitoring ---
-    sentry_dsn: str | None = None
-    datadog_api_key: str | None = None
-    posthog_api_key: str | None = None
-    posthog_host: str | None = None
-    otel_service_name: str = "brandos"
-    otel_endpoint: str | None = None
-
-    # --- Email ---
-    email_provider: Literal["sendgrid", "resend"] = "resend"
-    sendgrid_api_key: str = ""
-    resend_api_key: str = ""
-    email_from_address: str = "hello@brandos.app"
-    email_from_name: str = "BrandOS"
-```
-
-### 7.2 Environment File Structure
-
-```
-.env                        # Local development (gitignored)
-.env.example                # Template with placeholder values
-.env.staging                # Staging environment
-.env.production             # Production environment (gitignored)
-```
-
-### 7.3 Docker Compose (Development)
-
-```yaml
-# docker-compose.yml
-services:
-  api:
-    build: .
-    ports: ["8000:8000"]
-    depends_on: [redis]
-    env_file: .env
-
-  worker:
-    build: .
-    command: arq worker.main.WorkerSettings
-    depends_on: [redis]
-    env_file: .env
-
-  chromadb:
-    image: chromadb/chroma:latest
-    ports: ["8001:8000"]
-    volumes: ["chroma_data:/chroma/chroma"]
-    environment:
-      IS_PERSISTENT: "TRUE"
-      PERSIST_DIRECTORY: "/chroma/chroma"
-      ANONYMIZED_TELEMETRY: "FALSE"
-
-  redis:
-    image: redis:7-alpine
-    ports: ["6379:6379"]
-
-  minio:
-    image: minio/minio
-    ports: ["9000:9000", "9001:9001"]
-    command: server /data --console-address ":9001"
-    volumes: ["minio_data:/data"]
-```
-
----
-
-## Appendix: Pipeline Stage Contracts
-
-### Stage 1 → Stage 2 Contract
-
-```
-Input:  user_id (uuid.UUID)
-Output: AggregatedContext {
-    github: GitHubActivity | None,
-    knowledge: KnowledgeContext | None,
-    trends: list[TrendingTopic],
-    profile: UserProfile,
-    expertise: list[ExpertiseArea],
-    aggregated_summary: str,
-    signal_breakdown: SignalBreakdown
+## 8. Logging & Observability
+
+```typescript
+// File: functions/src/common/logging.ts
+
+// Structured logging with severity levels
+function logInfo(event: string, data?: Record<string, unknown>): void {
+  console.log(JSON.stringify({
+    severity: 'INFO',
+    event,
+    timestamp: new Date().toISOString(),
+    ...data,
+  }));
 }
 
-Fails if: No signals available and no cached context.
-Fallback: Return limited context with "low_signal" quality label.
-```
-
-### Stage 2 → Stage 3 Contract
-
-```
-Input:  AggregatedContext, count (int)
-Output: list[ContentIdea] {
-    id, title, description, angle, category,
-    relevance_score, novelty_score,
-    source_signals, suggested_tone, suggested_length, reasoning
+function logError(event: string, data?: Record<string, unknown>): void {
+  console.error(JSON.stringify({
+    severity: 'ERROR',
+    event,
+    timestamp: new Date().toISOString(),
+    ...data,
+  }));
 }
 
-Fails if: LLM returns empty or malformed ideas.
-Fallback: Return cached ideas from last brief (if available). Fail if no cache.
-```
-
-### Stage 3 → Stage 4 Contract
-
-```
-Input:  ContentIdea, AggregatedContext, StyleProfile, CompositionParams
-Output: CompositionResult {
-    draft_id, title, body, word_count, reading_time_seconds,
-    llm_used, tokens_used, composition_duration_ms, sections
+// Cloud Function duration tracking
+function trackDuration(functionName: string, durationMs: number): void {
+  // Log to console — Firebase picks up structured logs for Cloud Logging
+  logInfo('function_duration', {
+    function: functionName,
+    durationMs,
+  });
 }
-
-Fails if: LLM timeout, rate limit, or invalid output.
-Fallback: Retry with different LLM provider. Fail after max retries.
 ```
 
-### Stage 4 → Stage 5 Contract
+### 8.1 Key Metrics to Monitor
 
-```
-Input:  CompositionResult, StyleProfile
-Output: RefinementResult {
-    original_body, refined_body,
-    changes_applied: list[StyleChange],
-    style_adherence_score: float
-}
-
-Fails if: Never fails (deterministic).
-Fallback: N/A. Returns original text with reduced adherence score.
-```
-
-### Stage 5 → User Contract
-
-```
-Input:  RefinementResult, AggregatedContext, StyleProfile
-Output: QualityVerdict {
-    overall_score: float,
-    verdict: "pass" | "warn" | "fail",
-    dimensions: QualityDimensions,
-    warnings: list[QualityWarning],
-    recommendations: list[str]
-}
-
-Verdict "pass": Draft is presented to the user.
-Verdict "warn": Draft is presented with warnings highlighted.
-Verdict "fail": Draft is not presented. Pipeline regenerates with adjusted params.
-```
+| Metric | Where | Alert Threshold |
+|--------|-------|----------------|
+| P95 draft generation latency | Cloud Function logs | > 30s |
+| Groq API error rate | GroqService logs | > 5% |
+| Firestore write rate | Firebase Console | > 10K writes/day |
+| Embedding failure rate | Knowledge trigger logs | > 2% |
+| LinkedIn publish success rate | Publish service logs | < 95% |
+| Content generation queue depth | Cloud Tasks | > 50 pending |
 
 ---
 
-## Change History
+## 9. Testing Strategy
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 0.1 | 2026-06-26 | Architecture Team | Initial draft |
+| Layer | Tool | Coverage Target |
+|-------|------|-----------------|
+| **Unit tests** | Vitest | 90%+ for services, 80%+ for functions |
+| **Integration tests** | Vitest + firebase-emulator | All Cloud Function endpoints |
+| **Pipeline tests** | Vitest (mocked LLM) | All pipeline paths (success, retry, fail) |
+| **E2E tests** | Playwright | Critical user journeys (signup → generate → publish) |
+
+**Firebase Emulator Suite** runs locally for integration testing: `firebase emulators:start --only functions,firestore,auth`.
 
 ---
 
-*This document provides the low-level design for every service in the BrandOS system. Each service interface, data contract, and error type is explicitly defined. Implementers should follow these interfaces exactly — any deviation must be documented as an architecture decision record (ADR).*
+*This Low Level Design describes the TypeScript Cloud Functions architecture for the Firebase-based BrandOS. See 04_API_SPEC.md for the complete API surface and 05_DATABASE.md for the Firestore schema design.*

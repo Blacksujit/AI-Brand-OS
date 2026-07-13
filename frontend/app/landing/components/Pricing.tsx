@@ -52,8 +52,8 @@ export function Pricing({ direction = "up" }: { direction?: Direction }) {
   const sectionAnim = useEntrance(direction);
 
   return (
-    <section id="pricing" className="py-24 px-6 border-t border-border/50">
-      <div className="max-w-7xl mx-auto">
+    <section id="pricing" className="py-24 px-6 border-t border-border/20">
+      <div className="max-w-[1200px] mx-auto">
         <motion.div
           {...sectionAnim}
           className="text-center mb-20"
@@ -69,10 +69,10 @@ export function Pricing({ direction = "up" }: { direction?: Direction }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
-              className={`p-8 rounded-xl flex flex-col relative ${
+              className={`p-8 rounded-[40px] flex flex-col relative ${
                 plan.popular
-                  ? "border-2 border-foreground shadow-2xl bg-muted/20 scale-105"
-                  : "border border-border/50 bg-transparent"
+                  ? "border-2 border-foreground shadow-2xl bg-card/50 scale-105"
+                  : "border border-border/20 bg-transparent"
               }`}
             >
               {plan.popular && (
@@ -88,11 +88,11 @@ export function Pricing({ direction = "up" }: { direction?: Direction }) {
               <p className="text-sm text-muted-foreground mb-8">{plan.description}</p>
               <ul className="space-y-4 mb-8 flex-1">
                 {plan.features.map((feature) => (
-                  <li key={feature.text} className={`flex items-center gap-3 text-sm ${feature.included ? "" : "text-muted-foreground"}`}>
+                  <li key={feature.text} className={`flex items-center gap-3 text-sm ${feature.included ? "" : "text-muted-foreground/50"}`}>
                     {feature.included ? (
                       <Check className="h-4 w-4 text-green-400 shrink-0" />
                     ) : (
-                      <X className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <X className="h-4 w-4 text-muted-foreground/50 shrink-0" />
                     )}
                     {feature.text}
                   </li>
@@ -100,7 +100,7 @@ export function Pricing({ direction = "up" }: { direction?: Direction }) {
               </ul>
               <Button
                 variant={plan.popular ? "default" : "outline"}
-                className={`w-full rounded-lg font-bold ${plan.popular ? "bg-foreground text-background hover:bg-foreground/90" : ""}`}
+                className={`w-full rounded-[40px] font-bold ${plan.popular ? "bg-foreground text-background hover:bg-foreground/90" : ""}`}
                 asChild
               >
                 <a href="/login">{plan.cta}</a>

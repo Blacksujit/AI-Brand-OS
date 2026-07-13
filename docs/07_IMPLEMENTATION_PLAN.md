@@ -1,321 +1,311 @@
-# Implementation Plan
+# Implementation Plan: BrandOS (Firebase Stack)
 
-> **Phase**: Planning — Build Order & Milestones  
-> **Status**: Draft  
-> **Last Updated**: 2026-06-26
+## Document Info
 
-## Overview
+| Field | Value |
+|-------|-------|
+| **Status** | Draft |
+| **Created** | 2026-07-14 |
+| **Stack** | Firebase Cloud Functions + Next.js + pgvector |
+| **Duration** | 12 weeks (3 phases) |
 
-This document defines the build order, week-by-week milestones, and release criteria for BrandOS. It translates the architecture and design into an execution plan organized by service dependencies.
+---
 
-### Build Order (Bottom-Up)
+## Table of Contents
 
-From the service dependency DAG defined in `03_LOW_LEVEL_DESIGN.md`:
+- [Overview](#1-overview)
+- [Build Order](#2-build-order)
+- [Phase 1: Foundation (Weeks 1-4)](#3-phase-1-foundation-weeks-1-4)
+- [Phase 2: Core Product (Weeks 5-8)](#4-phase-2-core-product-weeks-5-8)
+- [Phase 3: Publishing & Analytics (Weeks 9-12)](#5-phase-3-publishing--analytics-weeks-9-12)
+- [What Changed from the Python Plan](#6-what-changed-from-the-python-plan)
+
+---
+
+## 1. Overview
+
+This plan builds BrandOS bottom-up, with each phase gated by a working user-facing feature. The total timeline is **12 weeks** — reduced from 16 weeks in the original Python plan because Firebase eliminates:
+
+- Custom auth infrastructure (JWT, sessions, password hashing)
+- Custom database setup (SQLite, Alembic migrations, ChromaDB)
+- Custom middleware stack (CORS, correlation IDs, security headers)
+- Custom queue system (Arq + Redis)
+- Docker Compose for local development
+- CI/CD pipeline for multiple deploy targets
+
+What remains manual: the domain logic (content pipeline, style analysis, publishing), AI integration (Groq + Mistral), and frontend.
+
+### Build Order
 
 ```
-Layer 0 (Foundation)     Profile
-                          Core Infrastructure (db, cache, llm, queue, security)
+Layer 2 (Intelligence)
+  Content Pipeline ← Knowledge, Style, Groq
+  Publishing       ← LinkedIn API, Scheduler
 
-Layer 1 (Auth + Data)    Auth
-                          GitHub
-                          Knowledge Base
-                          Style
+Layer 1 (Data)
+  Knowledge Base   ← Firestore + pgvector
+  Style            ← pgvector EMA
+  Connections      ← LinkedIn OAuth
 
-Layer 2 (Intelligence)   Trend
-                          Notification
-
-Layer 3 (Core Product)   Content Engine
-                          Platform (LinkedIn)
-
-Layer 4 (Value Add)      Analytics
-                          Brief
-```
-
-Each layer builds on all layers below. Work within a layer can be parallelized.
-
----
-
-## MVP: Weeks 1–16
-
-### Phase 1: Foundation (Weeks 1–4)
-
-**Goal**: Running auth, profile management, GitHub connection, and core infrastructure. User can sign up, connect GitHub, and see their repos.
-
-| Week | Deliverables | Dependencies |
-|------|-------------|--------------|
-| W1 | Project scaffolding — monorepo setup, Docker Compose (sqlite, chromadb, redis, minio), pyproject.toml, CI pipeline, cookiecutter service template | None |
-| W1 | Core infrastructure — `core/db.py` (async SQLAlchemy engine + session factory), `core/cache.py` (Redis abstraction), `core/logging.py` (structured JSON), `core/security.py` (password hashing, JWT encode/decode, AES-256-GCM) | W1 scaffold |
-| W2 | `models/auth.py` + `models/profile.py` (users, sessions, profiles, preferences) | W1 db |
-| W2 | Alembic migration 001 — initial schema (auth + profile tables) | W2 models |
-| W2 | `ProfileService` + `/api/v1/profile.py` — CRUD, expertise areas, preferences | W2 models |
-| W2 | Frontend scaffold — Next.js, Tailwind, shadcn/ui, auth pages (login/register), dashboard layout with sidebar | W1 scaffold |
-| W3 | `AuthService` + `/api/v1/auth.py` — register, login, OAuth initiate/callback, refresh, logout, me | W2 ProfileService |
-| W3 | OAuth provider implementations — Google OAuth, GitHub OAuth (in `services/auth/oauth.py`) | W3 AuthService |
-| W3 | Frontend auth integration — NextAuth.js, login/register pages, auth guard, OAuth callback handler, token refresh | W3 AuthService |
-| W4 | `models/github.py` (repositories, commits, pull_requests) + Alembic migration | W2 models |
-| W4 | `GitHubService` + `services/github/client.py` (async GitHub API v4 GraphQL client), `parser.py` (commit/PR parsing), `sync.py` (incremental sync logic) | W3 OAuth |
-| W4 | `GET /api/v1/connections/github` + `POST /api/v1/connections/github/connect` + webhook endpoint for push events | W4 GitHubService |
-| W4 | Frontend connections page — GitHub connect/disconnect, repo list, sync status indicator | W4 API |
-
-**Phase 1 Gate**: User signs up → connects GitHub → sees their repos and commits synced in dashboard. All auth flows work (email/password, GitHub OAuth, Google OAuth). CI green.
-
----
-
-### Phase 2: Intelligence (Weeks 5–8)
-
-**Goal**: Knowledge base ingestion, style fingerprint convergence, trend scanning. System can analyze user's content and find relevant topics.
-
-| Week | Deliverables | Dependencies |
-|------|-------------|--------------|
-| W5 | Core LLM — `core/llm.py` (ILLMClient interface), `core/llm_providers/anthropic.py`, `core/llm_providers/openai.py`, `core/llm_providers/fallback.py` (Provider A → B → Cache → error) | Core infra |
-| W5 | Core embedding — `core/embedding.py` (IEmbeddingService), text embedding via LLM provider or dedicated embedding model | W5 LLM |
-| W5 | Core storage — `core/storage.py` (S3-compatible file storage via boto3 + Minio for dev) | Core infra |
-| W5 | Core queue — `core/queue.py` (Arq job queue wrapper, IJobQueue interface) | Core infra |
-| W6 | `models/kb.py` (knowledge_items, knowledge_tags, embedding_refs) + Alembic migration + ChromaDB `kb_embeddings` collection setup | W5 embedding |
-| W6 | `KnowledgeBaseService` — CRUD, hybrid search (SQLite FTS5 + ChromaDB vector, 0.3/0.7 weight), tag management, `ingestion.py` (text extraction → LLM summarization → embedding → classification), `search.py` (hybrid query builder with SQLite FTS5 + ChromaDB) | W6 models, W5 LLM |
-| W6 | `GET /api/v1/kb/items` (search, filter, paginate) + `POST /api/v1/kb/items` (add item) + `DELETE /api/v1/kb/items/{id}` | W6 KBService |
-| W6 | Frontend Knowledge Base page — item list, search bar, add item form, tag filter | W6 API |
-| W7 | `models/style.py` (style_profiles, style_signals, ratings) + Alembic migration | W2 models |
-| W7 | `StyleService` — voice fingerprint (4 analyzers: lexical/syntactic/tonal/structural), EMA signal processing, `fingerprint.py` (convergence logic, 5–10 rated drafts to stable fingerprint), `ema.py` (exponential moving average) | W7 models, W5 LLM |
-| W7 | `POST /api/v1/content/rate` — user rates a draft, triggers style signal processing | W7 StyleService |
-| W7 | Frontend style meter component — visual gauge showing fingerprint convergence progress | W7 API |
-| W8 | `models/trend.py` (trending_topics, trend_sources) + Alembic migration | W2 models |
-| W8 | `TrendService` — `scrapers/hacker_news.py`, `scrapers/devto.py`, `scrapers/github_trending.py`, `scorer.py` (relevance scoring per user profile × KB topics) | W8 models, W6 KBService |
-| W8 | Worker `trend_scan.py` — periodic polling of trend sources, relevance filtering, caching | W8 TrendService, W5 queue |
-| W8 | Frontend trend panel — trending topics card on dashboard | W8 API |
-
-**Phase 2 Gate**: KB accepts text/URL/markdown items, returns hybrid search results. User can rate drafts and see style profile converging. Trending topics appear relevant to user's profile. Workers schedule and execute.
-
----
-
-### Phase 3: Content Engine + LinkedIn (Weeks 9–12)
-
-**Goal**: Full content pipeline — ideas → drafts → publish to LinkedIn. End-to-end content lifecycle working.
-
-| Week | Deliverables | Dependencies |
-|------|-------------|--------------|
-| W9 | `prompts/` directory — all 8 prompt files (context_aggregator, idea_generator, draft_composer, style_refiner, quality_gate, fingerprint_extraction, signal_classification, daily_brief, weekly_summary) with `{placeholder}` contracts | Phase 2 |
-| W9 | Content Engine pipeline scaffold — `pipeline.py` (orchestrator with stage registry, retry per stage, circuit breaker, metrics collection), `stages/base.py` (abstract BaseStage with timeout, retry policy, typed input/output) | Phase 2 |
-| W9 | Stage 1: `ContextAggregator` — collects 7-day GitHub activity + 14-day KB items + recent trends + draft history into structured context object | W9 pipeline scaffold |
-| W10 | Stage 2: `IdeaGenerator` — calls LLM with idea_generator prompt + context, parses structured idea objects (title + angle + hook + supporting_points + target_audience), validates schema | W9 Stage 1 |
-| W10 | Stage 3: `DraftComposer` — calls LLM with draft_composer prompt + idea + context, returns full draft with post body, suggested hashtags, best posting time | W10 Stage 2 |
-| W10 | `models/content.py` (content_drafts, draft_revisions, content_briefs, brief_ideas) + Alembic migration (partitioned HASH) | W9 models |
-| W10 | `ContentEngineService` — orchestrates full pipeline, manages draft lifecycle (draft → edit → regenerate → rate), `GET/POST/PUT /api/v1/content/*` | W10 models |
-| W11 | Stage 4: `StyleRefiner` — takes draft + current style fingerprint, rewrites to match voice, returns diff (original → refined) | W10 Stage 3 |
-| W11 | Stage 5: `QualityGate` — scores draft on relevance (0–10), authenticity (0–10), engagement_potential (0–10), passes if all ≥ 6 OR returns specific failure reasons | W11 Stage 4 |
-| W11 | Frontend content page — idea selector → draft editor with style meter → rate/edit/regenerate → schedule → publish flow | W11 API |
-| W11 | Draft editor — rich text editor with inline style score, revision history panel, schedule picker, publish button | W11 API |
-| W12 | `models/platform.py` (platform_connections, scheduled_posts, publish_logs, analytics_cache) + Alembic migration | W10 models |
-| W12 | `PlatformService` — `adapters/base.py` (abstract adapter), `adapters/linkedin.py` (UGC Post API, OAuth v2, image upload, rate limit handling), `scheduler.py` (cron-aware scheduling engine) | W12 models |
-| W12 | `POST /api/v1/publishing/publish` + `POST /api/v1/publishing/schedule` + `GET /api/v1/publishing/scheduled` + `DELETE /api/v1/publishing/scheduled/{id}` | W12 PlatformService |
-| W12 | Worker `publishing.py` — polls scheduled_posts every 5 min (FOR UPDATE SKIP LOCKED), publishes via adapter, writes to publish_logs | W12 PlatformService, W5 queue |
-
-**Phase 3 Gate**: Full content lifecycle end-to-end: daily brief → ideas → draft → style refine → quality gate → schedule → publish to LinkedIn. Draft editor shows style score in real time. Scheduled posts publish on time.
-
----
-
-### Phase 4: Analytics + Briefs + Beta Polish (Weeks 13–16)
-
-**Goal**: Analytics dashboard, daily briefs, notification system, beta readiness.
-
-| Week | Deliverables | Dependencies |
-|------|-------------|--------------|
-| W13 | `models/notification.py` (notification_logs, notification_preferences) + Alembic migration | W2 models |
-| W13 | `NotificationService` — channels (email via SendGrid/Resend, in-app via SSE/WebSocket), templates (brief, publish_success, weekly_summary), preference filtering | W13 models |
-| W13 | `models/analytics.py` → already in `platform` schema (analytics_cache) | W12 models |
-| W13 | `AnalyticsService` — `metrics.py` (impressions, engagement rate, CTR, follower growth, content score), `scoring.py` (Content Authority Score = weighted composite), cache warming | W12 PlatformService |
-| W13 | `GET /api/v1/analytics/overview` + `GET /api/v1/analytics/posts` + `GET /api/v1/analytics/trends` + `GET /api/v1/analytics/audience` + `GET /api/v1/analytics/content-score` | W13 AnalyticsService |
-| W13 | Worker `analytics.py` — periodic LinkedIn analytics fetch, cache warming, content score recalculation | W13 AnalyticsService, W5 queue |
-| W14 | Frontend analytics page — engagement chart, audience growth chart, content score metric card, post list with performance indicators | W13 API |
-| W14 | `models/content.py` additions — brief tables already exist in Phase 3 | W10 models |
-| W14 | `BriefService` — generates daily brief (trends + recent GitHub + suggested content angles + KB highlights), `GET /api/v1/content/brief/today` | Phase 3 |
-| W14 | Worker `daily_brief.py` — scheduled generation + notification delivery (email + in-app) | W14 BriefService, W13 NotificationService |
-| W15 | Frontend brief page — daily brief view with trend cards, content suggestions, quick action buttons (→ generate idea from trend) | W14 API |
-| W15 | `NotificationService` channels — email templates finalized, in-app notification center UI, notification preferences page | W15 NotificationService |
-| W15 | Onboarding flow — first-run wizard: connect GitHub → connect LinkedIn → add KB items → generate first draft → schedule first post | All Phase 3 |
-| W16 | **Beta release** — full E2E tests pass, load test at 100 concurrent users, error budget 99.9% uptime, all P0 user stories green | All phases |
-| W16 | Production hardening — rate limit tuning, cache TTL optimization, error message polishing, cost tracking (LLM token spend per user) | All phases |
-
-**Phase 4 Gate**: All 15 P0/P1 user stories pass. Beta users can onboard in <5 minutes. Analytics reflect real LinkedIn data. Daily briefs delivered on schedule. No P0 bugs open.
-
----
-
-## GA: Weeks 17–24 (Phase 5)
-
-**Goal**: Production readiness — performance, security, documentation, monitoring, migration scripts.
-
-| Week | Deliverables |
-|------|-------------|
-| W17 | Performance optimization — query profiling, N+1 elimination, pagination tuning, Redis cache hit ratio >80% |
-| W17 | Image optimization — CDN setup, responsive images in content |
-| W18 | Security audit — dependency audit, penetration test, secrets scan, rate limit enforcement verification |
-| W18 | GDPR compliance — data export endpoint (`GET /api/v1/admin/user/{id}/export`), delete user flow, privacy policy |
-| W19 | Monitoring — Datadog/Grafana dashboards, PagerDuty alerting for P0/P1, OpenTelemetry tracing for pipeline stages |
-| W19 | Error budget — implement SLO monitoring, burn rate alerts for API + pipeline + worker |
-| W20 | Documentation — API reference (OpenAPI/Swagger), deployment guide, runbook for common incidents, user FAQ |
-| W20 | Landing page — public marketing site with features, pricing, testimonials |
-| W21 | Closed beta with 50 users — bug bash, feedback collection, NPS survey |
-| W21 | Performance test at 500 users — response time P99 < 500ms for API, < 30s for content pipeline |
-| W22 | Bug fixes from closed beta, UX polish |
-| W22 | Database migration 003 — partition content_drafts, draft_revisions, publish_logs by time |
-| W23 | GA release — deploy to production, monitoring active, all runbooks verified |
-| W24 | Post-GA stabilization — incident response, hotfix process, monitoring tuning |
-
-**GA Gate**: All P0/P1 user stories pass. Performance at 500 users with P99 API < 500ms, pipeline < 30s. Security audit clean. Error budget >99.9%. All runbooks verified.
-
----
-
-## Phase 2 (Q1 2027): X/Twitter + Analytics Depth
-
-| Milestone | Target | Dependencies |
-|-----------|--------|-------------|
-| TwitterAdapter — OAuth v1.1/v2, tweet posting, media upload, rate limit handling | Week +4 post MVP | PlatformService |
-| Twitter trend scraper — trending topics from X API | Week +4 | TrendService |
-| Multi-platform publishing — schedule same draft to LinkedIn + X with platform-specific formatting | Week +6 | PlatformService |
-| Analytics depth — per-platform breakdown, content score trends, audience demographic estimation | Week +8 | AnalyticsService |
-| Content Authority Score v2 — incorporate cross-platform engagement velocity, share of voice | Week +8 | AnalyticsService |
-
----
-
-## Phase 3 (Q2–Q3 2027): Blogs + Newsletters
-
-| Milestone | Target | Dependencies |
-|-----------|--------|-------------|
-| Platform adapter base → 3 new adapters: Medium, Dev.to, Substack | Week +12 | PlatformService |
-| Long-form content pipeline — blog posts 1500–3000 words with structure (H2/H3, pull quotes, CTAs) | Week +14 | ContentEngineService |
-| Content repurposing — blog → LinkedIn thread → X thread (automatic) | Week +16 | ContentEngineService |
-| Email newsletter generation — digest format from published content | Week +16 | ContentEngineService + NotificationService |
-
----
-
-## Phase 4 (Q4 2027+): Ecosystem
-
-| Milestone | Target |
-|-----------|--------|
-| Public API — rate-limited, API-key based, documented with OpenAPI | Q4 2027 |
-| Embeddable widget — "Latest posts" widget for personal websites/portfolios | Q4 2027 |
-| Team/collaboration — multi-user workspaces, approval workflows | Q1 2028 |
-| AI-generated images — DALL-E/Stable Diffusion integration for post visuals | Q1 2028 |
-
----
-
-## Workstream Dependencies
-
-```
-W1 ─── W2 ─── W3 ─── W4 ─── W5 ─── W6 ─── W7 ─── W8 ─── W9 ─── W10 ─── W11 ─── W12 ─── W13 ─── W14 ─── W15 ─── W16
-│      │      │      │      │      │      │      │      │       │       │       │       │       │       │       │
-│      │      │      │      │      ├── W6 │      │      │       │       │       │       │       │       │       │
-│      │      │      │      ├── W5 │      │      │      │       │       │       │       │       │       │       │
-│      │      │      │      │      │      ├── W8 │      │       │       │       │       │       │       │       │
-│      │      │      │      │      │      │      ├── W9 ─── W10 ── W11 ── W12    │       │       │       │       │
-│      │      │      │      │      │      │      │      │       │       │       ├── W13 ── W14 ── W15 ── W16    │
-│      │      │      │      │      │      │      │      │       │       │       │       │       │       │       │
-└──────┴──────┴──────┴──────┴──────┴──────┴──────┴──────┴───────┴───────┴───────┴───────┴───────┴───────┴───────┘
- Foundation       Intelligence        Content Engine      Analytics + Beta
+Layer 0 (Foundation)
+  Auth + Profile   ← Firebase Auth + Firestore
+  Common           ← Firebase Admin, Zod, errors, logger
+  Infra            ← Firebase project, Firestore indexes, pgvector
 ```
 
 ---
 
-## Release Criteria
+## 2. Build Order
 
-### Per-Phase Gate
+By dependency:
 
-| Phase | Gate Requirements |
-|-------|------------------|
-| Phase 1 | User signs up → connects GitHub → sees repos. Auth flows all pass. CI green. |
-| Phase 2 | KB hybrid search returns results. Style profile converges after 8 ratings. Trends relevant to user profile. |
-| Phase 3 | Full content lifecycle E2E. Draft published to LinkedIn from within app. Scheduled posts fire on time. |
-| Phase 4 | All P0 user stories pass. Beta onboarding <5 min. Analytics reflect real data. No P0 bugs. |
-| GA | P99 API <500ms at 500 users. Pipeline <30s. Security audit clean. Error budget >99.9%. |
-
-### User Story Coverage (PRD)
-
-| ID | Description | Phase | Priority |
-|----|------------|-------|----------|
-| US-001 | GitHub activity → daily context | P1 (W5–6) | P0 |
-| US-002 | Add article/link → KB item | P2 (W6) | P0 |
-| US-003 | Generate content ideas | P3 (W9–10) | P0 |
-| US-004 | Compose draft from idea | P3 (W10) | P0 |
-| US-005 | Match my writing style | P3 (W11) | P0 |
-| US-006 | Edit and refine draft | P3 (W11) | P0 |
-| US-007 | Publish to LinkedIn | P3 (W12) | P0 |
-| US-008 | Schedule posts | P3 (W12) | P0 |
-| US-009 | Rate published content | P4 (W13) | P1 |
-| US-010 | Daily content brief | P4 (W14) | P1 |
-| US-011 | Track engagement analytics | P4 (W13) | P1 |
-| US-012 | Multi-platform posting | Phase 2 | P1 |
-| US-013 | One-tap repurpose content | Phase 3 | P2 |
-| US-014 | Grant assistant access | Phase 3 | P2 |
-| US-015 | Maintain brand voice across posts | Phase 2 | P1 |
+| Layer | Component | Depends On |
+|-------|-----------|------------|
+| **0** | Firebase project + config | Nothing |
+| **0** | `common/` (firebase, supabase, errors, logger) | Firebase project |
+| **0** | Firestore indexes + Security Rules | Firebase project |
+| **0** | pgvector schema (Supabase) | Supabase project |
+| **1** | Auth (Firebase Auth triggers) | common/firebase |
+| **1** | Profile functions | common/firebase, Auth |
+| **1** | Knowledge Base functions | common/firebase, common/supabase |
+| **1** | Style service | common/supabase |
+| **1** | Connections (LinkedIn OAuth) | common/firebase |
+| **2** | Content Pipeline (Groq) | Knowledge, Style, common/groq |
+| **2** | Content functions | Content Pipeline |
+| **2** | Briefs functions | Content Pipeline |
+| **2** | Publishing functions | Connections (LinkedIn) |
+| **2** | Analytics functions | Publishing |
 
 ---
 
-## Test Strategy
+## 3. Phase 1: Foundation (Weeks 1-4)
 
-| Layer | Tool | Scope | Frequency |
-|-------|------|-------|-----------|
-| Unit tests | pytest + pytest-asyncio | Services, pipelines, adapters, utils | Every PR |
-| Integration tests | pytest + testcontainers (PG + Redis) | API endpoints, worker jobs, DB queries | Every PR |
-| E2E tests | Playwright (frontend) + httpx (backend) | Auth flow, content lifecycle, publishing | Nightly |
-| Load tests | k6 or locust | API endpoints, content pipeline | Pre-release |
-| Security scan | bandit, safety, trivy | Dependencies, code patterns | Weekly CI |
+**Goal**: Authenticated user can manage their profile, save knowledge items, and search them. The dashboard shows a profile overview and knowledge base.
 
-### Test Targets
+### Week 1: Firebase Project + Common Infrastructure
 
-| Metric | Target |
-|--------|--------|
-| Unit test coverage (app/services/) | ≥ 90% |
-| Unit test coverage (app/pipelines/) | ≥ 95% |
-| Integration test coverage (api/v1/) | 100% of endpoints |
-| E2E test coverage (critical paths) | Auth, Content Lifecycle, Publishing |
-
----
-
-## Risk-Adjusted Timeline
-
-| Risk | Likelihood | Impact | Mitigation | Buffer |
-|------|-----------|--------|------------|--------|
-| LinkedIn API rate limits block publishing | Medium | High | UGC Post API with quota tracking; queue with exponential backoff; fallback to "save as draft" | +2 days |
-| LLM cost exceeds budget | Medium | Medium | Token tracking per user; tiered model selection (Haiku for stages 1/2/4, Sonnet for stage 3); hard monthly cap per user | +3 days |
-| Style convergence requires >10 ratings | Low | Medium | Seed fingerprint from writing sample analysis; cold-start with technical-writing defaults | +2 days |
-| GitHub API pagination for large repos | Low | Medium | Incremental sync with cursor-based pagination; sync only default branch + recent (≤90 days) | +1 day |
-| ChromaDB query performance regression | Low | High | HNSW index tuning (ef_search, M); ChromaDB batch size limits; query timeout 5s; Phase 2 vector store scaling | +3 days |
-
-### Buffer Allocation
-
-Each phase includes a **20% time buffer** distributed across the final 2 weeks for integration issues, unexpected edge cases, and UX polish.
-
-| Phase | Working Days | Buffer Days | Total |
-|-------|-------------|-------------|-------|
-| Phase 1 (W1–4) | 16 | 4 | 20 |
-| Phase 2 (W5–8) | 16 | 4 | 20 |
-| Phase 3 (W9–12) | 16 | 4 | 20 |
-| Phase 4 (W13–16) | 16 | 4 | 20 |
-| GA (W17–24) | 32 | 8 | 40 |
-
----
-
-## Resource Plan
-
-### MVP Team (Recommended)
-
-| Role | Count | Focus |
+| Task | Files | Notes |
 |------|-------|-------|
-| Backend engineer | 2 | Services, API, workers, DB |
-| Frontend engineer | 1 | Next.js, components, BFF |
-| ML/AI engineer | 1 | LLM integration, prompt engineering, style fingerprint, embeddings |
-| DevOps/Infra | 0.5 | CI/CD, Docker, deployment (shared) |
-| PM/Design | 0.5 | Product decisions, UX review, user testing (shared) |
+| Create Firebase project (Blaze plan) | — | Enable Auth, Firestore, Functions, Cloud Scheduler |
+| Initialize `functions/` with `firebase init` | `functions/package.json`, `functions/tsconfig.json`, `firebase.json`, `.firebaserc` | |
+| Install dependencies | `functions/package.json` | `firebase-functions`, `firebase-admin`, `zod`, `@supabase/supabase-js`, `groq-sdk`, `@mistralai/mistralai` |
+| Set up environment variables | `functions/.env` (local) + Firebase secrets | `GROQ_API_KEY`, `MISTRAL_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` |
+| Write `common/firebase.ts` | Common | Initialize Admin SDK, export Firestore `db` reference |
+| Write `common/supabase.ts` | Common | Initialize `createClient` with `service_role` key |
+| Write `common/errors.ts` | Common | `AppError`, `ValidationError`, `NotFoundError`, `RateLimitError`, `AiProviderError` |
+| Write `common/logger.ts` | Common | Structured console logger with severity levels |
+| Write `common/ratelimit.ts` | Common | In-memory token bucket (per-user, per-function) |
+| Write `common/types.ts` | Common | `ContentType`, `ContentTone`, `ContentLength`, `PostStatus` enums + shared interfaces |
+| Write Zod schemas | `schemas/profile.ts`, `schemas/knowledge.ts`, `schemas/content.ts`, `schemas/publish.ts`, `schemas/analytics.ts`, `schemas/briefs.ts`, `schemas/connections.ts`, `schemas/common.ts` | Validate all function inputs |
+| Write Firestore Security Rules | `firestore.rules` | Per-user subcollection access; admin-only access for analytics and worker collections |
+| Write composite index config | `firestore.indexes.json` | All composite indexes from 05_DATABASE.md |
+| Apply pgvector migrations | `supabase/migrations/001-004` | Run on Supabase project |
+| Set up frontend Firebase SDK | `frontend/lib/firebase.ts` | `initializeApp`, `getFunctions`, `getAuth` |
+| Write typed API client | `frontend/lib/api.ts` | `createCallable<TInput, TOutput>` wrappers |
 
-### Parallelization Opportunities
+### Week 2: Auth + Profile
 
-| Workstreams | Can Run Together | Notes |
-|-------------|-----------------|-------|
-| Frontend auth pages + Backend auth service | No — backend API must exist first | Sequential: W3 |
-| KB ingestion pipeline + Trend scraper | Yes — independent but both need core infra | Parallel: W6 + W8 |
-| Style analyzers (4) | Yes — independent | Parallel: W7 |
-| Content pipeline stages (5) | No — sequential by design | Sequential: W9–11 |
-| Analytics service + Frontend analytics | No — backend API must exist first | Sequential: W13–14 |
-| Notification service + Brief service | Partial — brief depends on notification | Overlapping: W13–14 |
-| Infrastructure + All backend | Yes — infra is prerequisite | W1 infra, then ongoing |
-| GA tasks (perf, security, docs) | Yes — independent workstreams | Parallel: W17–20 |
+| Task | Files | Notes |
+|------|-------|-------|
+| Write `onUserCreate` auth trigger | `functions/src/triggers.ts` | Creates user Firestore document + pgvector style_vector row on sign-up |
+| Write `profile-getMyProfile` | `functions/src/profile/getMyProfile.ts` | Reads user document |
+| Write `profile-updateMyProfile` | `functions/src/profile/updateMyProfile.ts` | Updates user document fields |
+| Write `profile-updateMyPreferences` | `functions/src/profile/updateMyPreferences.ts` | Updates user preferences subfields |
+| Register functions in `index.ts` | `functions/src/index.ts` | Export all `onCall` handlers |
+| Write Firebase Auth context | `frontend/lib/auth.ts` | `useAuth` hook, sign-in/sign-up/sign-out |
+| Write auth guard component | `frontend/components/layout/auth-guard.tsx` | Redirect to /login if not authenticated |
+| Update login/register pages | `frontend/app/(auth)/login/page.tsx`, `register/page.tsx` | Use Firebase Auth instead of NextAuth |
+| Write profile form | `frontend/components/forms/profile-form.tsx` | Display name, bio, preferences |
+| Write dashboard page | `frontend/app/(dashboard)/dashboard/page.tsx` | Profile card, quick stats, recent activity |
+
+**Phase 1 Gate**: User signs up → sees dashboard with profile → can edit profile and preferences. Auth trigger creates Firestore document. CI green.
+
+### Week 3: Knowledge Base (CRUD + Search)
+
+| Task | Files | Notes |
+|------|-------|-------|
+| Write `knowledge-createItem` | `functions/src/knowledge/createItem.ts` | Validates input, writes to Firestore |
+| Write `knowledge-getItem` | `functions/src/knowledge/getItem.ts` | Reads single item |
+| Write `knowledge-updateItem` | `functions/src/knowledge/updateItem.ts` | Updates editable fields |
+| Write `knowledge-deleteItem` | `functions/src/knowledge/deleteItem.ts` | Deletes document + pgvector row via trigger |
+| Write `knowledge-search` | `functions/src/knowledge/search.ts` | Queries pgvector `match_knowledge` RPC |
+| Write `onKnowledgeWritten` trigger | `functions/src/triggers.ts` | On write: generate Mistral embedding → upsert pgvector. On delete: remove from pgvector |
+| Write `common/mistral.ts` | `functions/src/common/mistral.ts` | MistralService: `generateEmbedding(text)` → 768-d vector |
+| Write `match_knowledge` RPC | Supabase migration `004` | PostgreSQL function for filtered cosine similarity |
+| Write knowledge list/search page | `frontend/app/(dashboard)/knowledge-base/page.tsx` | Search bar, tag filter, item list |
+| Write knowledge item detail page | `frontend/app/(dashboard)/knowledge-base/[id]/page.tsx` | Read/edit form |
+| Write knowledge add form | `frontend/components/forms/kb-item-form.tsx` | URL, title, note, tags, source type |
+
+### Week 4: Connections + Style Foundation
+
+| Task | Files | Notes |
+|------|-------|-------|
+| Write `connections-connectLinkedIn` | `functions/src/connections/connectLinkedIn.ts` | OAuth callback → store encrypted tokens in Firestore |
+| Write `connections-connectGitHub` | `functions/src/connections/connectGitHub.ts` | OAuth callback → store encrypted tokens |
+| Write `connections-getConnectionStatus` | `functions/src/connections/getConnectionStatus.ts` | Returns status of all platform connections |
+| Write `connections-disconnect` | `functions/src/connections/disconnect.ts` | Removes connection document |
+| Write `common/linkedin.ts` | `functions/src/common/linkedin.ts` | LinkedIn API v2 client (OAuth, user info, post creation) |
+| Write `common/github.ts` | `functions/src/common/github.ts` | GitHub API client (commits, repos) |
+| Set up Firestore trigger for `onDraftRated` | `functions/src/triggers.ts` | Triggers style EMA update on pgvector |
+| Write `common/style-service.ts` | `functions/src/common/style-service.ts` | `StyleService` with EMA vector update logic |
+| Write connections page | `frontend/app/(dashboard)/settings/connections/page.tsx` | Connect/disconnect LinkedIn, GitHub |
+
+**Phase 2 Gate**: User can save knowledge items, search them semantically. LinkedIn and GitHub accounts connected. Style profile initializes.
+
+---
+
+## 4. Phase 2: Core Product (Weeks 5-8)
+
+**Goal**: Fully functional content generation pipeline. User sees ideas → generates draft → rates draft → system learns their style.
+
+### Week 5: Groq Service + Prompts
+
+| Task | Files | Notes |
+|------|-------|-------|
+| Write `common/groq.ts` | `functions/src/common/groq.ts` | GroqService: 3 model strategies (Llama 3.3 70B for ideas, Qwen3 32B for drafts, Llama 4 Scout 17B for quality gate). Rate-limit aware. |
+| Write prompt template: context aggregator | `functions/src/common/prompts/context-aggregator.ts` | Template string + type-safe `{placeholders}` |
+| Write prompt template: idea generator | `functions/src/common/prompts/idea-generator.ts` | |
+| Write prompt template: draft composer | `functions/src/common/prompts/draft-composer.ts` | |
+| Write prompt template: style refiner | `functions/src/common/prompts/style-refiner.ts` | |
+| Write prompt template: quality gate | `functions/src/common/prompts/quality-gate.ts` | |
+| Write prompt template: daily brief | `functions/src/common/prompts/daily-brief.ts` | |
+
+### Week 6: Content Pipeline
+
+| Task | Files | Notes |
+|------|-------|-------|
+| Write `ContentPipeline` class | `functions/src/common/content-pipeline.ts` | Orchestrates 5 stages: context aggregation → idea generation → draft composition → style refinement → quality gate |
+| Implement stage 1: context aggregation | `pipeline.ts` | Gather user profile, recent knowledge, recent drafts, trending topics |
+| Implement stage 2: idea generation | `pipeline.ts` | Call Groq (Llama 3.3 70B) → parse structured ideas |
+| Implement stage 3: draft composition | `pipeline.ts` | Call Groq (Qwen3 32B) → compose full draft |
+| Implement stage 4: style refinement | `pipeline.ts` | If style vector exists, call Groq with style context → rewrite to match voice |
+| Implement stage 5: quality gate | `pipeline.ts` | Call Groq (Llama 4 Scout 17B) → score draft → pass/warn/fail verdict |
+| Handle rate limits | `pipeline.ts` | Rate-limit aware retry with exponential backoff |
+
+### Week 7: Content Functions
+
+| Task | Files | Notes |
+|------|-------|-------|
+| Write `content-generateIdeas` | `functions/src/content/generateIdeas.ts` | Calls pipeline stages 1+2 |
+| Write `content-generateDraft` | `functions/src/content/generateDraft.ts` | Calls pipeline stages 3+4+5 |
+| Write `content-updateDraft` | `functions/src/content/updateDraft.ts` | Persists user edits |
+| Write `content-regenerateDraft` | `functions/src/content/regenerateDraft.ts` | Pipeline rerun with user feedback |
+| Write `content-rateDraft` | `functions/src/content/rateDraft.ts` | Saves rating in Firestore → triggers style update |
+| Write `content-schedulePost` | `functions/src/content/schedulePost.ts` | Creates schedule document |
+| Write `content-getDraftHistory` | `functions/src/content/getDraftHistory.ts` | Paginated draft list |
+| Write draft editor page | `frontend/app/(dashboard)/content/[id]/page.tsx` | Rich text editor, regenerate button, rating UI |
+| Write draft feed page | `frontend/app/(dashboard)/content/page.tsx` | Filter by status, sort by date |
+| Write draft creation page | `frontend/app/(dashboard)/content/new/page.tsx` | Idea list → select → generate |
+| Write idea list component | `frontend/components/content/idea-list.tsx` | Score badges, hover previews |
+| Write rating UI | `frontend/components/content/draft-card.tsx` | Star rating per dimension |
+
+**Phase 2 Gate**: User navigates to "New Content" → sees generated ideas → selects one → gets full draft → can edit, regenerate, rate. System learns style from ratings.
+
+---
+
+## 5. Phase 3: Publishing & Analytics (Weeks 9-12)
+
+**Goal**: User can publish to LinkedIn, view post history, see analytics. Daily briefs auto-generate. Backend migrations are clean.
+
+### Week 9: Publishing
+
+| Task | Files | Notes |
+|------|-------|-------|
+| Write `publish-publishNow` | `functions/src/publish/publishNow.ts` | Reads draft → posts via LinkedIn API → writes result |
+| Write `publish-getSchedule` | `functions/src/publish/getSchedule.ts` | Paginated schedule list |
+| Write `publish-deleteSchedule` | `functions/src/publish/deleteSchedule.ts` | Cancels scheduled post |
+| Write `publish-getPublishHistory` | `functions/src/publish/getPublishHistory.ts` | Published post history |
+| Write `processScheduledPosts` worker | `functions/src/worker.ts` | Cloud Scheduler: every 5 min → check `scheduled_worker` → publish if ready |
+| Write schedule picker component | `frontend/components/content/schedule-picker.tsx` | Date/time + confirm dialog |
+| Write schedule page | `frontend/app/(dashboard)/publish/page.tsx` | Schedule list with status badges |
+
+### Week 10: Analytics + Briefs
+
+| Task | Files | Notes |
+|------|-------|-------|
+| Write `analytics-getOverview` | `functions/src/analytics/getOverview.ts` | Aggregates recent post metrics |
+| Write `analytics-getPostMetrics` | `functions/src/analytics/getPostMetrics.ts` | Single post performance |
+| Write `analytics-getAudienceInsights` | `functions/src/analytics/getAudienceInsights.ts` | Follower growth, demographics |
+| Write `aggregateDailyAnalytics` worker | `functions/src/worker.ts` | Cloud Scheduler: daily at 2am → roll up metrics |
+| Write `briefs-getTodayBrief` | `functions/src/briefs/getTodayBrief.ts` | Generates daily brief (or returns cached) |
+| Write `briefs-listBriefs` | `functions/src/briefs/listBriefs.ts` | Recent brief history |
+| Write `generateDailyBriefs` worker | `functions/src/worker.ts` | Cloud Scheduler: hourly → check matching `briefHour` → generate |
+| Write analytics dashboard page | `frontend/app/(dashboard)/analytics/page.tsx` | Charts, metric cards, post list |
+| Write brief page | `frontend/app/(dashboard)/brief/page.tsx` | Today's ideas, context summary |
+
+### Week 11: Admin + Polish
+
+| Task | Files | Notes |
+|------|-------|-------|
+| Write `admin-getSystemStats` | `functions/src/admin/getSystemStats.ts` | User count, invocations, Groq usage (admin custom claim) |
+| Write `admin-forceSync` | `functions/src/admin/forceSync.ts` | Force re-sync user's GitHub/LinkedIn data |
+| Error handling audit | All functions | Verify all Zod validation errors surface properly; rate limit responses are helpful; AI errors don't bubble raw provider messages |
+| Rate limit tuning | `common/ratelimit.ts` | Adjust per-function rate limits based on actual usage patterns |
+| Firestore composite indexes audit | `firestore.indexes.json` | Verify all query patterns are covered; remove unused indexes |
+| Security Rules audit | `firestore.rules` | Verify no collection is accessible without auth; verify admin-only collections |
+| Frontend error boundaries | `frontend/components/common/error-boundary.tsx` | Wrap each page section with error boundary |
+| Loading states | All pages | Skeleton loaders for async data |
+| Empty states | All list pages | Informative empty state when no data |
+
+### Week 12: Testing + Launch
+
+| Task | Files | Notes |
+|------|-------|-------|
+| Write function unit tests | `functions/__tests__/` | Vitest + `firebase-functions-test` emulator |
+| Write pipeline tests | `functions/__tests__/common/` | Mock Groq responses, test each stage independently |
+| Write integration tests | `functions/__tests__/` | Test function → Firestore → pgvector data flow |
+| Write frontend tests | `frontend/__tests__/` | Component tests, page tests |
+| Test emulator suite | `scripts/test-emulator.sh` | `firebase emulators:exec` with full test suite |
+| Verify Groq + Mistral API keys | Firebase Secrets | Production secrets stored via `firebase functions:secrets:set` |
+| Deploy to Firebase | `firebase deploy --only functions` | First production deployment |
+| Deploy frontend to Vercel | `vercel --prod` | Connect git repo for auto-deploy |
+| Smoke test all features | — | Core paths: signup → profile → knowledge → ideas → draft → rate → schedule → publish → analytics |
+
+**Launch Gate**: All 30 callable functions deployed and tested. User can complete full workflow. All rate limits documented. Monitoring configured.
+
+---
+
+## 6. What Changed from the Python Plan
+
+| Dimension | Python Plan (16 weeks) | Firebase Plan (12 weeks) | Delta |
+|-----------|-----------------------|-------------------------|-------|
+| **Infrastructure** | W1-2: docker-compose, SQLite, Alembic, Redis, ChromaDB, Minio, custom CI | W1: Firebase CLI init, common modules | -2 weeks |
+| **Auth** | W3-4: NextAuth.js, JWT, sessions, password hashing, OAuth providers | W2: Firebase Auth (built-in) | -1 week |
+| **Middleware** | Custom CORS, correlation IDs, security headers, rate limiting | W1: Firebase handles CORS/auth; rate limit in one file | -1 week |
+| **Workers** | Arq + Redis queue setup, worker Dockerfile | W1: Cloud Scheduler (built-in pubsub) | -1 week |
+| **Total** | 16 weeks | 12 weeks | -4 weeks |
+
+### Reused Code
+
+The following are **new code** (no Python equivalent to port):
+
+- `common/groq.ts` — Groq API client (was Anthropic/OpenAI)
+- `common/mistral.ts` — Mistral embedding API (was ChromaDB auto-embed)
+- `common/content-pipeline.ts` — Pipeline orchestrator (conceptually similar to Python `services/content_engine/pipeline.py`)
+- `common/style-service.ts` — EMA vector logic (same concept as Python `services/style/ema.py`)
+- All prompt templates (were `.txt` files, now `.ts` template strings)
+- All Zod schemas (were Pydantic models — equivalent, different library)
+- All function handlers (were FastAPI route handlers — fully different interface)
+
+The prompt templates and pipeline logic are the only true ports. Everything else is a rewrite for the Firebase paradigm.
+
+### Migration Checklist
+
+```
+[ ] Week 1: Firebase project created, functions initialized, common modules written
+[ ] Week 2: Auth working, profile page renders
+[ ] Week 3: Knowledge CRUD + search working
+[ ] Week 4: LinkedIn/GitHub connections working, style service initialized
+[ ] Week 5: Groq service tested, all prompts written
+[ ] Week 6: Content pipeline passing end-to-end tests
+[ ] Week 7: Content generation UI fully functional
+[ ] Week 8: Rate limiting verified, pipeline handles edge cases
+[ ] Week 9: Posting to LinkedIn working, schedule worker tested
+[ ] Week 10: Analytics dashboard rendering, daily briefs generating
+[ ] Week 11: Admin functions working, polish pass complete
+[ ] Week 12: All tests green, deployed to production, smoke test passed
+```
+
+---
+
+*This implementation plan replaces the original 16-week Python-based plan. The Firebase stack reduces build time by 4 weeks through managed infrastructure (auth, database, queues) while leaving the core content pipeline — BrandOS's differentiator — as the main development effort.*

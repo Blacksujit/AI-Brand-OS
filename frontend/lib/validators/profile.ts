@@ -14,7 +14,7 @@ export const ProfileResponseSchema = z.object({
     bio: z.string().nullable(),
     website: z.string().nullable(),
     location: z.string().nullable(),
-    preferences: z.record(z.unknown()),
+    preferences: z.record(z.string(), z.unknown()),
   }),
 });
 
@@ -23,7 +23,7 @@ export const ProfileUpdateSchema = z.object({
   website: z.string().url().optional().nullable(),
   location: z.string().optional(),
   display_name: z.string().min(1).max(100).optional(),
-  preferences: z.record(z.unknown()).optional(),
+  preferences: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const OnboardingRequestSchema = z.object({

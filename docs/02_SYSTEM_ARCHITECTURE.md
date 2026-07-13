@@ -6,8 +6,9 @@
 |-------|-------|
 | **Author** | Architecture Team |
 | **Status** | Draft |
-| **Created** | 2026-06-26 |
-| **Last Updated** | 2026-06-26 |
+| **Created** | 2026-07-14 |
+| **Last Updated** | 2026-07-14 |
+| **Stack** | Firebase + Vercel + Open-Source AI |
 | **Target Release** | Q4 2026 |
 
 ---
@@ -15,23 +16,19 @@
 ## Table of Contents
 
 - [Architectural Principles](#1-architectural-principles)
-- [High Level Architecture](#2-high-level-architecture)
-- [Component Architecture](#3-component-architecture)
-- [Sequence Diagrams](#4-sequence-diagrams)
-- [Request Flow](#5-request-flow)
-- [Data Flow](#6-data-flow)
-- [Agent Flow](#7-agent-flow)
-- [Memory Flow](#8-memory-flow)
-- [Knowledge Flow](#9-knowledge-flow)
-- [Database Flow](#10-database-flow)
-- [API Flow](#11-api-flow)
-- [Future Extension Points](#12-future-extension-points)
-- [Scalability](#13-scalability)
-- [Caching Strategy](#14-caching-strategy)
-- [Security Architecture](#15-security-architecture)
-- [Deployment Architecture](#16-deployment-architecture)
-- [Monitoring & Observability](#17-monitoring--observability)
-- [Failure Handling](#18-failure-handling)
+- [Technology Decisions](#2-technology-decisions)
+- [High Level Architecture](#3-high-level-architecture)
+- [Component Architecture](#4-component-architecture)
+- [Content Generation Pipeline](#5-content-generation-pipeline)
+- [Sequence Diagrams](#6-sequence-diagrams)
+- [Memory Architecture](#7-memory-architecture)
+- [Knowledge Flow](#8-knowledge-flow)
+- [Security Architecture](#9-security-architecture)
+- [Caching Strategy](#10-caching-strategy)
+- [Deployment Architecture](#11-deployment-architecture)
+- [Scalability Path](#12-scalability-path)
+- [Cost Analysis](#13-cost-analysis)
+- [Decision Log](#14-decision-log)
 
 ---
 
@@ -41,420 +38,516 @@
 
 | Principle | Rationale |
 |-----------|-----------|
-| **Clean Architecture** | Domain logic is independent of frameworks, databases, and external APIs. The content engine, style learner, and knowledge base are pure business logic with injected adapters. |
-| **Event-Driven Core** | Content generation, brief creation, and analytics are async workflows. Synchronous only for user-facing CRUD (profiles, drafts, settings). |
-| **Human-in-the-Loop** | AI never publishes without explicit human approval. The content pipeline produces drafts; humans approve. This is non-negotiable and baked into the flow, not bolted on. |
-| **Provider Abstraction** | LLM providers (Anthropic, OpenAI) are behind a common interface. Selection is configurable per user and per task. No hard coupling to any single provider. |
-| **Data as Moat** | User style profiles, voice fingerprints, and knowledge graphs are the defensible asset. They live in the user's data plane and are never used for public model training without explicit opt-in. |
-| **Platform-Agnostic Core** | The content engine produces canonical content objects. Platform adapters (LinkedIn, X, blog) convert to platform-specific formats. Adding a new platform means writing one adapter. |
+| **Clean Architecture** | Domain logic is independent of Firebase, Vercel, and AI providers. Content engine, style learner, and knowledge base are pure TypeScript with injected adapters. |
+| **Event-Driven Core** | Content generation, brief creation, and analytics are async workflows triggered by Firestore events or Cloud Tasks. Synchronous only for user-facing CRUD (profiles, drafts, settings). |
+| **Human-in-the-Loop** | AI never publishes without explicit human approval. Content pipeline produces drafts; humans approve. This is enforced at the application layer, not the UI layer. |
+| **Provider Abstraction** | LLM providers (Groq, Mistral, future) are behind a common interface. Selection is configurable per user and per task. No coupling to any single provider. |
+| **Data as Moat** | User style profiles, voice fingerprints, and knowledge graphs are the defensible asset. Stored in Firestore under the user's document. Never used for model training. |
+| **Platform-Agnostic Core** | Content engine produces canonical content objects. Platform adapters (LinkedIn, X, blog) convert to platform-specific formats. Adding a platform means one adapter file. |
+| **Serverless by Default** | Every function scales independently. No long-running servers. Firestore triggers replace polling. Cloud Tasks replace cron workers. |
+| **Minimal Dependencies** | Each Cloud Function has a specific purpose. No shared state between function invocations. Stateless design enables independent scaling. |
 
 ### 1.2 Key Architectural Decisions
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| **Backend Runtime** | Python (FastAPI) | Dominant in AI/ML ecosystem. Native async support. Rich library ecosystem for LLM orchestration, embeddings, and data processing. |
-| **Frontend** | Next.js 14+ (App Router) | SSR for content-rich pages. API routes can serve as BFF. React ecosystem for rich editing experiences. |
-| **Primary Database** | SQLite | Zero-operations embedded database. Sufficient for single-tenant MVP (< 500 users). WAL mode for concurrent reads. FTS5 for full-text search. Data stored per-instance at `./data/brandos.db`. Migrate to PostgreSQL at scale. |
-| **Vector Store** | ChromaDB | Dedicated vector database decoupled from relational schema. Persistent local client at `./data/chromadb/`. HNSW indexes for sub-100ms queries. Migrate to Pinecone/Weaviate at scale or when exceeding 10M vectors. |
-| **Cache & Queue** | Redis | Dual-purpose. Cache for hot data (content briefs, trending topics). Queue (via Arq) for async content generation jobs. |
-| **Object Storage** | S3-compatible (AWS S3 / Cloudflare R2) | Draft history, user uploads, generated assets. R2 for egress-free multi-region. |
-| **LLM Interface** | Abstraction layer (own interface) | Swap between Anthropic Claude (primary for long-form), OpenAI GPT-4o (fallback), and future models without touching business logic. |
-| **Async Queue** | Arq (Redis-backed) | Python-native. Lighter than Celery. Built on asyncio which matches FastAPI's async model. |
-| **Authentication** | OAuth 2.0 + JWT | Auth0 or Clerk for managed auth. LinkedIn OAuth for platform posting. GitHub OAuth for data source. Google OAuth for sign-in. |
+| **Backend Runtime** | Firebase Cloud Functions (TypeScript) | Serverless, scales to zero, integrated with Firestore and Auth. No server management. Free tier: 2M invocations/month on Blaze. TypeScript gives type safety for LLM data contracts. |
+| **Frontend** | Next.js 14+ (App Router) → Vercel | SSR for content-rich pages. Firebase Client SDK for auth/firestore. Vercel AI SDK for streaming LLM responses. Existing frontend stack is already Next.js. |
+| **Primary Database** | Firestore (NoSQL) | Serverless, real-time capable, integrates with Cloud Functions triggers. Subcollections match our data hierarchy (user → knowledge → drafts → schedule). No managed DB server. |
+| **Vector Store** | Supabase pgvector | Already has Supabase client installed. pgvector provides HNSW indexing for sub-100ms similarity search. Free tier: 500MB database, 5K rows. Separate from Firestore for independent scaling. |
+| **Auth** | Firebase Auth | Built-in support for email/password, Google, GitHub OAuth. Handles token lifecycle, refresh, session management. Free tier: 50K MAU. |
+| **Object Storage** | Firebase Cloud Storage | Serverless file storage with Firestore integration. Blaze plan: 5GB free, then $0.026/GB. Used for draft history exports, user uploads. |
+| **LLM Inference** | Groq API (free tier) | Llama 3.3 70B, Qwen3 32B, Llama 4 Scout 17B, DeepSeek R1 Distill 70B. All open-source. Free tier: 30 RPM, 14.4K RPD, no credit card required. OpenAI-compatible API — drop-in with Vercel AI SDK. |
+| **Embeddings API** | Mistral AI (free tier) | `mistral-embed` model. 1B tokens/month free. OpenAI-compatible. No credit card required. Cheaper and simpler than running local ONNX models in Cloud Functions. |
+| **Async Jobs** | Firebase Cloud Tasks + `onSchedule` Functions | Cloud Tasks handle retries, backoff, and scheduling for content generation jobs. `firebase-functions` v2 `onSchedule` replaces cron for daily briefs. |
+| **Secrets Management** | Firebase Cloud Secret Manager (via `defineSecret`) | Managed secrets for Groq API key, Mistral API key, LinkedIn OAuth client secret. Auto-injected into function environment. |
+
+### 1.3 Why Not...
+
+| Option | Why Not |
+|--------|---------|
+| **Python FastAPI backend** | Requires managing a server (Render, Fly, K8s). Cloud Functions eliminate server management. TypeScript lets frontend+backend share types. |
+| **PostgreSQL directly** | Serverless PostgreSQL (Neon, Supabase) would work, but Firestore's real-time triggers, Auth integration, and security rules reduce backend code by ~40%. |
+| **SQLite** | Single-file database doesn't scale beyond single-server. Cloud Functions are stateless — no local file persistence between invocations. |
+| **ChromaDB** | Requires running a separate process. Supabase pgvector has a free tier and integrates with PostgreSQL queries for hybrid search. |
+| **Anthropic/OpenAI** | Paid per-token. Groq's LPU hardware provides faster inference than cloud GPUs for most open-source models — at zero API cost on the free tier. |
+| **Redis for cache** | Firestore's built-in caching via `getCountFromServer`, `getAggregateFromServer`, and client-side caching with `{source: 'cache'}` eliminates the need for a separate cache layer at MVP scale. Add Redis-only if latency becomes an issue for brief retrieval. |
+| **Server-side session** | Firebase Auth handles sessions client-side with ID tokens. No server-side session store needed. |
+| **Monolith service layer** | Cloud Functions are naturally function-grained. Encapsulating logic into a few well-structured functions avoids function sprawl while staying deployable. |
 
 ---
 
-## 2. High Level Architecture
+## 2. Technology Decisions
 
-### 2.1 System Context
+### 2.1 Firebase vs. Alternative Backend
+
+| Requirement | Firebase | Alternative (FastAPI + Render) |
+|-------------|----------|-------------------------------|
+| **Auth** | Built-in (50K MAU free) | Auth0 or Clerk ($200-500/mo at scale) |
+| **Database** | Firestore (NoSQL, triggers) | Managed Postgres ($15-50/mo) |
+| **Compute** | Cloud Functions (2M invocations free) | Render web service ($7-25/mo) |
+| **Storage** | Cloud Storage (5GB free, Blaze) | S3-compatible ($0.023/GB) |
+| **Async Jobs** | Cloud Tasks + onSchedule | Celery/Arq + Redis ($15-30/mo) |
+| **Operational Cost (MVP)** | ~$0/mo (Blaze with free usage) | ~$30-100/mo |
+| **Scaling** | Automatic, serverless | Manual scaling or auto-scaling groups |
+| **Cold Start** | ~500ms-2s for Node.js functions | N/A (always-on server) |
+| **Migration Path** | Firestore → Firestore (same) | SQLite → Postgres (schema migration) |
+
+Firebase wins for MVP because **operational cost is near-zero** while delivering auth, database, compute, and storage in one platform. The trade-off is Firestore's NoSQL query limitations and cold start latency — both addressed through careful schema design and function warmup.
+
+### 2.2 Groq vs. Other Free AI Providers
+
+| Provider | Free Tier | Models | Limits | Credit Card |
+|----------|-----------|--------|--------|-------------|
+| **Groq** | Yes | Llama 3.3 70B, Qwen3 32B, Llama 4 Scout 17B, DeepSeek R1 Distill 70B, Mixtral 8x7B | 30 RPM, 6K TPM, ~14.4K RPD | No |
+| **Mistral AI** | Yes | Mistral Small/Large, `mistral-embed` (1B tok/mo) | 1B tokens/month (all models) | No |
+| **Together AI** | No | Llama 3.3, Mixtral, DeepSeek | $5 minimum deposit | Yes |
+| **OpenRouter** | Yes | 30+ free models (limited RPM) | Varies per model | No |
+| **Cloudflare Workers AI** | Yes | Llama 3.1 8B, Qwen 1.5, embeddings | 10K neurons/day | No |
+| **GitHub Models** | Yes | Llama 3, Phi-3, Mistral | 50-150 requests/day | No |
+| **Google Gemini API** | Yes | Gemini 1.5 Flash/Pro | 60 RPM (Flash), 1M context | No |
+
+**Decision:** Groq for generation (best latency with LPU hardware, generous rate limits) + Mistral AI for embeddings (1B tokens/month free, dedicated embedding model). Both are OpenAI-compatible, so Vercel AI SDK works with zero adapter code.
+
+### 2.3 Firestore vs. Postgres for Content Data
+
+Firestore is chosen over Postgres for the primary data layer because:
+
+1. **Serverless triggers** — Cloud Functions fire on Firestore document writes. This eliminates the need for a message queue for many workflows: "when user saves knowledge item → generate embedding" is a Firestore trigger, not a separate job.
+2. **Real-time by default** — `onSnapshot` listeners on the client mean the dashboard, brief queue, and content calendar update in real-time without WebSocket infrastructure.
+3. **Security Rules** — Access control is declarative at the document level. "User can only read their own drafts" is a 5-line rules file, not middleware code.
+4. **No schema migrations** — NoSQL schemas evolve with the application. New fields are added on write, not via ALTER TABLE.
+
+The cost: complex queries (JOINs, GROUP BY, aggregate reporting) require Cloud Functions or a separate analytics pipeline. This is acceptable for MVP — simple queries go to Firestore directly; complex analytics use a nightly aggregation function.
+
+### 2.4 Supabase pgvector for Embeddings
+
+Firestore lacks native vector similarity search. Supabase pgvector fills this gap:
+
+- **Integration** — Supabase client is already installed in the frontend (`@supabase/supabase-js`). Cloud Functions use it server-side with service role key.
+- **Free tier** — 500MB database, row-level security, API auto-generated from schema.
+- **Cross-reference** — pgvector stores a `user_id` column alongside each embedding vector. This enables user-scoped vector search without per-user indexes.
+- **Hybrid search** — Supabase integrates pgvector with Postgres full-text search for keyword + semantic hybrid retrieval (RRF).
+
+Data flow: Firestore triggers a Cloud Function → Mistral Embeddings API → pgvector upsert.
+
+---
+
+## 3. High Level Architecture
+
+### 3.1 System Context
 
 ```mermaid
 C4Context
-  title System Context Diagram — BrandOS
+  title System Context Diagram — BrandOS (Firebase Stack)
 
   Person(user, "Technical Professional", "AI engineer, researcher, founder, or creator")
+
   System(brandos, "BrandOS", "AI-powered Personal Brand Operating System")
 
-  System_Ext(linkedin, "LinkedIn", "Social platform for professional content")
-  System_Ext(github, "GitHub", "Code hosting platform")
-  System_Ext(twitter, "X/Twitter", "Micro-blogging platform")
-  System_Ext(llm, "LLM Provider", "Anthropic Claude / OpenAI GPT")
-  System_Ext(email, "Email Service", "Transactional emails, digests")
-  System_Ext(analytics, "Analytics Platform", "Amplitude / PostHog")
-  System_Ext(devto, "Dev.to / Medium", "Technical blogging platforms")
+  System_Ext(firebase, "Firebase Platform", "Auth, Firestore, Cloud Functions, Storage")
+  System_Ext(vercel, "Vercel", "Frontend hosting, serverless edge")
+  System_Ext(groq, "Groq API", "Free open-source LLM inference (Llama 3.3, Qwen3)")
+  System_Ext(mistral, "Mistral AI", "Free embedding API (mistral-embed)")
+  System_Ext(supabase, "Supabase pgvector", "Vector similarity search")
+  System_Ext(linkedin, "LinkedIn API", "Social platform for professional content")
+  System_Ext(github, "GitHub API", "Code hosting platform")
 
   Rel(user, brandos, "Creates and manages content")
+  Rel(brandos, firebase, "Auth, DB, Compute, Storage")
+  Rel(brandos, vercel, "Serves frontend")
+  Rel(brandos, groq, "Generates drafts, ideas, summaries")
+  Rel(brandos, mistral, "Generates text embeddings")
+  Rel(brandos, supabase, "Stores and queries vectors")
   Rel(brandos, linkedin, "Posts content, reads analytics")
   Rel(brandos, github, "Reads repos, commits, PRs")
-  Rel(brandos, twitter, "Posts threads (Phase 2)")
-  Rel(brandos, llm, "Generates drafts, ideas, summaries")
-  Rel(brandos, email, "Sends briefs, reminders, digests")
-  Rel(brandos, analytics, "Tracks events")
-  Rel(brandos, devto, "Publishes articles (Phase 3)")
 ```
 
-### 2.2 Container Architecture
+### 3.2 Container Architecture
 
 ```mermaid
 C4Container
-  title Container Diagram — BrandOS
+  title Container Diagram — BrandOS (Firebase Stack)
 
   Person(user, "Technical Professional")
 
   System_Boundary(brandos, "BrandOS Platform") {
-    Container(web, "Next.js App", "TypeScript, React", "SSR web app, API routes, BFF layer")
-    Container(api, "FastAPI Backend", "Python, FastAPI", "REST API gateway, service orchestration")
+    Container(web, "Next.js App", "TypeScript, React, Tailwind", "SSR web app hosted on Vercel. Firebase client SDK for auth + Firestore reads. Vercel AI SDK for streaming LLM calls.")
+    Container(auth, "Firebase Auth", "Managed Service", "Email/password, Google OAuth, GitHub OAuth. Handles token lifecycle, refresh, session.")
+    Container(firestore, "Firestore", "NoSQL Database", "Primary data store. Users, profiles, knowledge base, drafts, schedule, briefs. Realtime via onSnapshot.")
+    Container(functions, "Cloud Functions", "TypeScript, Node.js 20", "HTTP callable functions, Firestore triggers, scheduled functions. 7 function groups.")
 
-    System_Boundary(services, "Service Layer") {
-      Container(auth, "Auth Service", "Python", "Authentication, OAuth token management")
-      Container(profile, "Profile Service", "Python", "User profiles, preferences, expertise areas")
-      Container(github_svc, "GitHub Service", "Python", "Repo analysis, commit scraping, activity detection")
-      Container(kb, "Knowledge Base Service", "Python", "Link/note/paper storage, tagging, embedding search")
-      Container(trend, "Trend Service", "Python", "Trending topic discovery, RSS parsing, relevance scoring")
-      Container(content, "Content Engine", "Python", "Idea generation, draft creation, style application")
-      Container(style, "Style Service", "Python", "Voice fingerprint, writing style analysis, edit tracking")
-      Container(platform, "Platform Service", "Python", "Cross-platform publishing, scheduling, platform adapters")
-      Container(analytics_svc, "Analytics Service", "Python", "Engagement metrics, content scoring, reporting")
-      Container(brief, "Brief Service", "Python", "Daily/weekly content brief generation, delivery")
-      Container(notif, "Notification Service", "Python", "Email/push/in-app notifications")
+    System_Boundary(agents, "AI Agent Layer") {
+      Container(content_agent, "Content Agent", "TypeScript", "Orchestrates context gathering → idea generation → draft composition → style refinement → quality gate. 5-stage pipeline.")
+      Container(brief_agent, "Brief Agent", "TypeScript", "Aggregates GitHub activity + KB + trends → ranks ideas → builds daily brief. Scheduled via onSchedule.")
+      Container(style_agent, "Style Agent", "TypeScript", "Maintains EMA style profile per user. Learns from ratings, edits, approvals. No LLM calls — purely algorithmic.")
+      Container(trend_agent, "Trend Agent", "TypeScript", "RSS feed scraping. Hacker News, Reddit, ArXiv, curated tech newsletters. Relevance scoring per user expertise.")
     }
 
-    System_Boundary(data, "Data Layer") {
-      ContainerDb(sqlite, "SQLite", "Primary DB", "Users, profiles, content, knowledge base, schedules")
-      ContainerDb(chromadb, "ChromaDB", "Vector DB", "Knowledge embeddings, style vectors, content similarity")
-      ContainerDb(redis, "Redis", "Cache + Queue", "Session cache, hot data, Arq job queue")
-      ContainerDb(storage, "S3 Storage", "Object Storage", "Draft history, user uploads, generated assets")
-    }
+    ContainerDb(storage, "Cloud Storage", "Object Storage", "Draft revision history, user uploads, exported content. 5GB free on Blaze plan.")
+    ContainerDb(vectors, "Supabase pgvector", "Vector Database", "Knowledge embeddings, style vectors, content similarity search. HNSW indexes for sub-100ms queries.")
+    ContainerDb(tasks, "Cloud Tasks", "Async Job Queue", "Content generation jobs, scheduled posts. Retry with exponential backoff.")
   }
 
-  System_Ext(linkedin, "LinkedIn API")
-  System_Ext(github, "GitHub API")
-  System_Ext(llm, "LLM Provider API")
-  System_Ext(email, "SendGrid / Resend")
+  System_Ext(groq_api, "Groq API", "Llama 3.3 70B, Qwen3 32B, Llama 4 Scout 17B, Mixtral 8x7B")
+  System_Ext(mistral_api, "Mistral AI", "mistral-embed model")
+  System_Ext(linkedin_api, "LinkedIn API")
+  System_Ext(github_api, "GitHub API")
 
   Rel(user, web, "HTTPS", "Browser")
-  Rel(web, api, "HTTP/REST", "API calls")
-  Rel(api, auth, "gRPC/HTTP", "Sync calls")
-  Rel(api, profile, "gRPC/HTTP", "Sync calls")
-  Rel(api, github_svc, "gRPC/HTTP", "Sync calls")
-  Rel(api, kb, "gRPC/HTTP", "Sync calls")
-  Rel(api, content, "gRPC/HTTP", "Sync calls")
-  Rel(api, platform, "gRPC/HTTP", "Sync calls")
-  Rel(api, analytics_svc, "gRPC/HTTP", "Sync calls")
+  Rel(web, auth, "Firebase Auth SDK", "Client-side auth")
+  Rel(web, firestore, "Firebase SDK", "Read/write documents")
+  Rel(web, functions, "callable()", "Invoke backend logic")
+  Rel(web, groq_api, "Vercel AI SDK", "Streaming draft generation (user-initiated)")
 
-  Rel(content, style, "gRPC/HTTP", "Style profile lookup")
-  Rel(content, trend, "gRPC/HTTP", "Trending topics")
-  Rel(content, llm, "HTTPS", "LLM API calls")
-  Rel(platform, linkedin, "HTTPS", "REST API")
-  Rel(github_svc, github, "HTTPS", "REST API")
-  Rel(brief, content, "gRPC/HTTP", "Generate brief content")
-  Rel(brief, notif, "gRPC/HTTP", "Trigger delivery")
-  Rel(notif, email, "HTTPS", "SendGrid API")
-
-  Rel(github_svc, sqlite, "SQLAlchemy", "Read/Write")
-  Rel(kb, sqlite, "SQLAlchemy", "Read/Write")
-  Rel(kb, chromadb, "ChromaDB client", "Vector I/O")
-  Rel(content, redis, "Redis", "Job queue")
-  Rel(content, sqlite, "SQLAlchemy", "Read/Write")
-  Rel(style, sqlite, "SQLAlchemy", "Read/Write")
-  Rel(sqlite, storage, "Draft attachments")
+  Rel(functions, firestore, "Admin SDK", "Read/write triggers")
+  Rel(functions, groq_api, "Vercel AI SDK", "Token-efficient batch generation")
+  Rel(functions, mistral_api, "Fetch API", "Generate embeddings on KB write")
+  Rel(functions, vectors, "@supabase/supabase-js", "Upsert/query vectors")
+  Rel(functions, github_api, "Octokit", "Repo analysis")
+  Rel(functions, linkedin_api, "Fetch API", "Publish + analytics poll")
+  Rel(functions, tasks, "Cloud Tasks client", "Enqueue async work")
+  Rel(functions, storage, "Admin SDK", "Store/retrieve blobs")
 ```
 
-### 2.3 Layer Architecture
+### 3.3 Cloud Function Groups
 
 ```mermaid
 flowchart TB
-  subgraph Presentation["Presentation Layer"]
-    NEXT["Next.js App
-        SSR / CSR
-        Tailwind CSS
-        Draft Editor
-        Dashboard"]
+  subgraph HTTP["HTTP-Callable Functions (onCall)"]
+    PROFILE["profile\n· get/set profile\n· preferences\n· expertise areas"]
+    KB["knowledgeBase\n· CRUD items\n· hybrid search\n· tags"]
+    CONTENT["content\n· generate ideas\n· generate draft\n· schedule post\n· rate/approve"]
+    PUBLISH["publish\n· post to LinkedIn\n· schedule\n· history"]
+    ANALYTICS["analytics\n· overview\n· engagement\n· audience growth"]
+    BRIEF["brief\n· get today's brief\n· list history"]
   end
 
-  subgraph API["API Gateway Layer"]
-    BFF["Next.js API Routes
-        BFF Pattern
-        Auth Middleware
-        Rate Limiting"]
+  subgraph TRIGGER["Firestore Triggers (onDocumentWritten)"]
+    KB_EMBED["onKbItemWrite\n· generate embedding\n· upsert to pgvector"]
+    SCHEDULE_PUB["onScheduleWrite\n· enqueue publish job\n· validate tokens"]
+    STYLE_UPDATE["onDraftRating\n· update style profile\n· EMA recalculation"]
   end
 
-  subgraph Services["Service Layer"]
-    direction TB
-    AUTH["Auth Service
-        · JWT management
-        · OAuth handlers
-        · Token refresh"]
-    PROFILE["Profile Service
-        · User CRUD
-        · Expertise areas
-        · Preferences"]
-    GITHUB["GitHub Service
-        · Repo analyzer
-        · Commit scraper
-        · PR detector"]
-    KB["Knowledge Base Svc
-        · Link/note CRUD
-        · Tagging engine
-        · Embedding search"]
-    TREND["Trend Service
-        · RSS aggregator
-        · Relevance ranker
-        · Source scoring"]
-    CONTENT["Content Engine
-        · Idea generator
-        · Draft composer
-        · Style applier
-        · Quality scorer"]
-    STYLE["Style Service
-        · Voice fingerprint
-        · Edit tracker
-        · Style profile
-        · Rating learner"]
-    PLATFORM["Platform Service
-        · LinkedIn adapter
-        · Twitter adapter (P2)
-        · Blog adapter (P3)
-        · Scheduler"]
-    ANALYTICS["Analytics Service
-        · Metric aggregator
-        · Content scorer
-        · Report builder"]
-    BRIEF["Brief Service
-        · Context aggregator
-        · Priority ranker
-        · Delivery scheduler"]
-    NOTIF["Notification Svc
-        · Email sender
-        · In-app notifs
-        · Digest builder"]
+  subgraph SCHEDULED["Scheduled Functions (onSchedule)"]
+    DAILY_BRIEF["generateDailyBriefs\n· every 6 hours\n· batch all active users"]
+    GITHUB_SYNC["syncGitHubActivity\n· every 6 hours\n· poll repos for active users"]
+    TREND_SYNC["syncTrendingTopics\n· every 3 hours\n· RSS + HN + Reddit"]
+    LI_ANALYTICS["syncLinkedInAnalytics\n· every 12 hours\n· poll engagement data"]
+    CLEANUP["cleanupExpiredTokens\n· every 24 hours\n· revoke stale tokens"]
+  end
+
+  subgraph TASKS["Cloud Tasks (Async Jobs)"]
+    GEN_DRAFT["generateDraftTask\n· 30s timeout\n· 3 retries"]
+    PUBLISH_POST["publishPostTask\n· 15s timeout\n· 5 retries, exponential backoff"]
+    ANALYZE_STYLE["analyzeStyleTask\n· 10s timeout\n· 1 retry"]
+  end
+
+  PROFILE --> firestore[(Firestore)]
+  KB --> firestore
+  KB -->|hybrid search| vectors[(Supabase pgvector)]
+  CONTENT --> firestore
+  CONTENT -->|enqueue| GEN_DRAFT
+  CONTENT -->|style profile| STYLE_UPDATE
+  PUBLISH -->|enqueue| PUBLISH_POST
+  PUBLISH --> firestore
+  ANALYTICS --> firestore
+  BRIEF -->|read cached| firestore
+
+  KB_EMBED --> mistral_api[Mistral Embeddings API]
+  KB_EMBED --> vectors
+
+  GEN_DRAFT --> groq_api[Groq API]
+  PUBLISH_POST --> linkedin_api[LinkedIn API]
+
+  DAILY_BRIEF --> GEN_DRAFT
+  DAILY_BRIEF --> firestore
+  GITHUB_SYNC --> github_api[GitHub API]
+  GITHUB_SYNC --> firestore
+  TREND_SYNC -->|RSS feeds| firestore
+  LI_ANALYTICS --> linkedin_api
+  LI_ANALYTICS --> firestore
+```
+
+### 3.4 Layer Architecture
+
+```mermaid
+flowchart TB
+  subgraph Client["Client Layer — Vercel (Next.js)"]
+    NEXT["Next.js App Router
+         · SSR pages
+         · Client components
+         · Server actions
+         · Route handlers"]
+    FIREBASE_CLI["Firebase Client SDK
+                  · Auth (onAuthStateChanged)
+                  · Firestore (onSnapshot)
+                  · Functions (callable)"]
+    AI_SDK["Vercel AI SDK
+            · Streaming LLM calls
+            · Provider abstraction
+            · useChat hook"]
+  end
+
+  subgraph Auth["Auth Layer — Firebase"]
+    FIREBASE_AUTH["Firebase Auth
+                   · Email/password
+                   · Google OAuth
+                   · GitHub OAuth
+                   · Custom claims (roles)
+                   · ID token lifecycle"]
+  end
+
+  subgraph Compute["Compute Layer — Cloud Functions"]
+    HTTP_FNS["HTTP-Callable Functions
+              · Validated input (zod)
+              · Auth context
+              · Service orchestration"]
+    TRIGGER_FNS["Event-Driven Functions
+                 · Firestore triggers
+                 · Auth triggers (onCreate/onDelete)"]
+    SCHED_FNS["Scheduled Functions
+               · Cron via onSchedule
+               · Batch processing"]
+    TASK_FNS["Cloud Task Handlers
+              · Async job execution
+              · Retry + backoff
+              · Dead letter on failure"]
+  end
+
+  subgraph AI["AI Agent Layer (in Cloud Functions)"]
+    CONTENT_PIPELINE["Content Pipeline
+                      · Context aggregator
+                      · Idea generator
+                      · Draft composer
+                      · Style refiner
+                      · Quality gate"]
+    BRIEF_PIPELINE["Brief Pipeline
+                    · Multi-source context
+                    · Idea ranking
+                    · Brief assembly"]
+    STYLE_PIPELINE["Style Pipeline
+                    · Edit tracking
+                    · EMA update
+                    · Signal weighting"]
   end
 
   subgraph Data["Data Layer"]
-    SQLITE[("SQLite
-        · User data
-        · Content store
-        · Knowledge base
-        · Schedules")]
-    CHROMA[("ChromaDB
-        · KB embeddings
-        · Style vectors
-        · Content similarity")]
-    REDIS[("Redis
-        · Session cache
-        · Hot data cache
-        · Job queue")]
-    S3[("S3 / R2
-        · Draft history
-        · Uploads
-        · Assets")]
+    FIRESTORE[("Firestore
+                · User documents
+                · Subcollections
+                · Composite indexes")]
+    PGVECTOR[("Supabase pgvector
+               · Knowledge embeddings
+               · Style vectors
+               · HNSW index")]
+    STORAGE[("Cloud Storage
+              · Draft exports
+              · User uploads
+              · Generated assets")]
   end
 
-  subgraph External["External Integrations"]
-    LLM["LLM API
-        Anthropic / OpenAI"]
-    GH_API["GitHub API"]
-    LI_API["LinkedIn API"]
-    EMAIL_API["SendGrid / Resend"]
-    ANALYTICS_PLATFORM["Amplitude / PostHog"]
+  subgraph External["External Services"]
+    GROQ["Groq API
+          · Llama 3.3 70B
+          · Qwen3 32B
+          · DeepSeek R1 70B"]
+    MISTRAL["Mistral AI
+             · mistral-embed"]
+    GITHUB["GitHub API
+            · Octokit
+            · Repo analysis"]
+    LINKEDIN["LinkedIn API
+              · UGC Posts
+              · Analytics"]
   end
 
-  NEXT -->|"HTTPS"| BFF
-  BFF -->|"REST"| AUTH
-  BFF -->|"REST"| PROFILE
-  BFF -->|"REST"| KB
-  BFF -->|"REST"| CONTENT
-  BFF -->|"REST"| PLATFORM
-  BFF -->|"REST"| ANALYTICS
-  BFF -->|"REST"| BRIEF
+  NEXT --> FIREBASE_CLI
+  NEXT --> AI_SDK
+  FIREBASE_CLI --> FIREBASE_AUTH
+  FIREBASE_CLI -->|SDK reads| FIRESTORE
+  FIREBASE_CLI -->|invoke| HTTP_FNS
 
-  CONTENT -->|"style lookup"| STYLE
-  CONTENT -->|"trending topics"| TREND
-  CONTENT -->|"LLM call"| LLM
+  HTTP_FNS -->|zod validation| TRIGGER_FNS
+  HTTP_FNS --> CONTENT_PIPELINE
+  HTTP_FNS --> BRIEF_PIPELINE
+  HTTP_FNS --> FIRESTORE
+  HTTP_FNS --> PGVECTOR
 
-  GITHUB -->|"repo data"| GH_API
-  PLATFORM -->|"publish"| LI_API
+  TRIGGER_FNS --> FIRESTORE
+  TRIGGER_FNS -->|embedding jobs| PGVECTOR
+  TRIGGER_FNS -->|enqueue| TASK_FNS
 
-  AUTH --> SQLITE
-  PROFILE --> SQLITE
-  GITHUB --> SQLITE
-  KB --> SQLITE
-  KB --> CHROMA
-  CONTENT --> SQLITE
-  STYLE --> SQLITE
-  STYLE --> CHROMA
-  PLATFORM --> SQLITE
-  ANALYTICS --> SQLITE
+  SCHED_FNS --> BRIEF_PIPELINE
+  SCHED_FNS --> CONTENT_PIPELINE
+  SCHED_FNS --> FIRESTORE
 
-  CONTENT -->|"job queue"| REDIS
-  AUTH -->|"session cache"| REDIS
-  BRIEF -->|"brief cache"| REDIS
+  TASK_FNS --> CONTENT_PIPELINE
+  TASK_FNS -->|publish| LINKEDIN
+  TASK_FNS --> FIRESTORE
 
-  NOTIF -->|"send"| EMAIL_API
-  ANALYTICS -->|"events"| ANALYTICS_PLATFORM
+  AI_SDK --> GROQ
+  CONTENT_PIPELINE --> GROQ
+  CONTENT_PIPELINE --> FIRESTORE
+  CONTENT_PIPELINE --> STYLE_PIPELINE
+
+  BRIEF_PIPELINE --> FIRESTORE
+  BRIEF_PIPELINE --> PGVECTOR
+
+  STYLE_PIPELINE --> FIRESTORE
+  STYLE_PIPELINE --> PGVECTOR
+
+  GITHUB -->|Octokit| FIRESTORE
+  LINKEDIN --> FIRESTORE
+  MISTRAL --> PGVECTOR
 ```
-
-### Decision: Why FastAPI over Django
-
-FastAPI was chosen over Django for three reasons:
-1. **Async-native** — The content engine makes concurrent LLM calls, parallel data source fetches, and streaming responses. Django's async support is bolted-on and immature compared to FastAPI's native `asyncio`.
-2. **Type-driven** — Pydantic models provide compile-time contract validation for every API boundary. This matters when orchestrating 11+ services with strict data contracts.
-3. **Lightweight** — Django brings an ORM, admin panel, templating engine, and forms system — only the ORM is relevant. FastAPI + SQLAlchemy is a leaner fit.
-
-### Decision: Why Next.js over a pure SPA
-
-Content creation involves writing, editing, previewing, and managing drafts — all of which benefit from SSR for SEO (public profile pages, shared content), faster initial page loads, and better perceived performance. Next.js API routes also serve as a BFF layer, eliminating the need for a separate gateway microservice at MVP scale.
-
-### Decision: Why ChromaDB over pgvector or dedicated vector databases
-
-ChromaDB was chosen over pgvector and dedicated vector databases (Pinecone/Weaviate) for three reasons:
-1. **Decoupled scaling** — Vector embeddings grow independently of relational data. ChromaDB uses a separate PersistentClient, so vector re-indexing, HNSW tuning, and dimension changes don't touch SQLite.
-2. **Zero-ops for MVP** — ChromaDB's PersistentClient stores vectors as flat files in `./data/chromadb/`, matching SQLite's zero-operations philosophy. No separate server process or cloud dependency.
-3. **Clean migration path** — The `IEmbeddingStore` interface abstracts ChromaDB behind a repository pattern. When exceeding 10M vectors or adding multi-region requirements, swap to Pinecone/Weaviate without touching business logic.
-
-At MVP scale (< 10K items per user, < 500 users), ChromaDB provides sub-100ms HNSW queries with zero operational overhead. This also avoids coupling the vector store to the relational schema lifecycle, unlike pgvector which ties vector operations to PostgreSQL schema migrations.
 
 ---
 
-## 3. Component Architecture
+## 4. Component Architecture
 
-### 3.1 Content Engine — Internal Architecture
+### 4.1 Cloud Function Package Structure
 
-The Content Engine is the most architecturally significant component. It is not a single monolith but a pipeline of specialized sub-components.
+```
+functions/
+  src/
+    profile/       # User profile CRUD
+    knowledge/     # Knowledge base CRUD + embedding trigger
+    content/       # Content generation pipeline
+    publish/       # Platform publishing (LinkedIn)
+    analytics/     # Analytics aggregation
+    briefs/        # Daily brief generation
+    github/        # GitHub sync
+    trend/         # Trending topic discovery
+    style/         # Style profile learning
+    common/        # Shared utilities, types, middleware
+```
+
+### 4.2 Content Engine — Pipeline Architecture
+
+The Content Engine is a 5-stage pipeline. Each stage is a pure function with typed inputs and outputs. The orchestrator runs them sequentially with timeouts and retry policies.
 
 ```mermaid
 flowchart LR
-  subgraph CONTEXT["Context Aggregator"]
-    GA["GitHub Analyzer
-        · Repo structure
+  subgraph CONTEXT["Stage 1: Context Aggregator"]
+    GA["GitHub Activity
         · Recent commits
         · Open PRs
-        · Language stats"]
+        · Repo languages"]
     KBR["KB Reader
-        · Recent saves
-        · Top tags
-        · Emb-search
-        · Summaries"]
-    TA["Trend Analyzer
-        · Topic scores
-        · Freshness
-        · Relevance
-        · Source rank"]
+         · Recent saves
+         · Top tags
+         · Semantic search
+         · Summaries"]
+    TA["Trend Signals
+        · Relevance scored
+        · Freshness weighted
+        · Source ranked"]
+    SP["Style Profile
+        · Voice params
+        · Vocab map
+        · Tone settings"]
   end
 
-  subgraph IDEATE["Idea Generator"]
-    IM["Idea Mapper
-        · Signal weighting
-        · Duplicate detection
-        · Novelty scoring"]
-    IR["Idea Ranker
-        · User preference
-        · Category balance
-        · Strategic fit"]
+  subgraph IDEATE["Stage 2: Idea Generator (LLM)"]
+    IG["Groq API call
+        · Prompt: context + constraints
+        · Output: 3-5 ranked ideas
+        · Model: Llama 3.3 70B"]
   end
 
-  subgraph COMPOSE["Draft Composer"]
-    CP["Content Planner
-        · Outline generation
-        · Structure selection
-        · Angle definition"]
-    CW["Content Writer (LLM)
-        · Section writing
-        · Technical depth
-        · Code examples"]
+  subgraph COMPOSE["Stage 3: Draft Composer (LLM)"]
+    DC["Groq API call
+        · Prompt: idea + style + format
+        · Output: full draft
+        · Model: Qwen3 32B (faster)"]
   end
 
-  subgraph STYLE_REF["Style Refiner"]
-    SA["Style Analyzer
-        · Vocab matching
-        · Sentence struct
-        · Tone calibration"]
-    SF["Style Filter
-        · Phrase replacement
-        · Structure adjust
-        · Voice verify"]
+  subgraph REFINE["Stage 4: Style Refiner"]
+    SR["Algorithmic
+        · Vocab swap
+        · Sentence length adjust
+        · Tone calibration
+        · Hook pattern match"]
   end
 
-  subgraph QUALITY["Quality Gate"]
-    QS["Quality Scorer
-        · Fact-check
+  subgraph QUALITY["Stage 5: Quality Gate (LLM)"]
+    QG["Groq API call
         · Hallucination scan
-        · Readability
-        · Authenticity"]
-    QV["Quality Verdict
-        · PASS → user
-        · FAIL → regenerate
-        · WARN → flag section"]
+        · Readability score
+        · Fact-check
+        · Verdict: PASS / FAIL / WARN
+        · Model: Llama 4 Scout 17B"]
   end
 
-  GA --> CONTEXT
-  KBR --> CONTEXT
-  TA --> CONTEXT
-  CONTEXT --> IM
-  IM --> IR
-  IR --> CP
-  CP --> CW
-  CW --> SA
-  SA --> SF
-  SF --> QS
-  QS --> QV
+  subgraph OUTPUT["Output"]
+    DRAFT[(Draft saved to Firestore)]
+  end
+
+  GA --> IDEATE
+  KBR --> IDEATE
+  TA --> IDEATE
+  SP --> IDEATE
+  IDEATE -->|3-5 ideas| COMPOSE
+  COMPOSE -->|draft text| REFINE
+  REFINE -->|adjusted draft| QUALITY
+  QUALITY -->|verdict| OUTPUT
+
+  QUALITY -.->|FAIL| COMPOSE
 ```
 
-### Decision: Pipeline, not monolithic generation
+**Stage Model Selection Rationale:**
 
-Content generation is decomposed into 5 sequential stages with explicit data contracts between them. This provides:
-1. **Observability** — Each stage emits metrics. If quality scores drop, we know which stage is degrading.
-2. **Swapability** — The LLM is only in the "Content Writer" sub-stage. The Context Aggregator and Style Refiner are deterministic or use small models. We can change LLM providers without touching the pipeline structure.
-3. **Caching granularity** — Context aggregations can be cached per-user per-day. Idea maps can be cached per-session. Only the writer stage needs to hit the LLM.
+| Stage | Model | Why |
+|-------|-------|-----|
+| Idea Generator | Llama 3.3 70B | Best reasoning for novel idea synthesis from diverse context |
+| Draft Composer | Qwen3 32B | Faster inference (LPU), good technical writing quality |
+| Quality Gate | Llama 4 Scout 17B | Strong instruction following for structured evaluation, cheapest |
 
-### 3.2 Style Service — Voice Fingerprint Architecture
+### 4.3 Style Service — Voice Fingerprint
+
+Style learning is **algorithmic**, not LLM-based. No API calls needed per style update.
 
 ```mermaid
 flowchart TB
   subgraph INPUTS["Style Signal Sources"]
-    RATINGS["· User ratings on drafts
-             · 1-5 scale per output"]
-    EDITS["· User edits on drafts
-             · Diff tracking
-             · Acceptance rate"]
-    APPROVALS["· Approved vs rejected
-             · Regenerate triggers
-             · Manual rewrites"]
-    IMPORTS["· Imported LinkedIn posts
-             · Historical content
-             · User-provided examples"]
+    RATINGS["· User ratings (1-5)"
+             "· Per-dimension scores"
+             "· Comment/text feedback"]
+    EDITS["· User edits on drafts"
+             "· Diff tracking"
+             "· Acceptance rate per suggestion"]
+    APPROVALS["· Approved vs rejected"
+                "· Regenerate triggers"
+                "· Manual rewrites count"]
+    IMPORTS["· Imported LinkedIn posts"
+              "· Historical content"
+              "· User-provided examples"]
   end
 
-  subgraph ANALYSIS["Style Analysis Pipeline"]
-    LEXICAL["Lexical Analyzer
-             · Vocab frequency
-             · Technical term use
-             · Filler words"]
-    SYNTACTIC["Syntactic Analyzer
-               · Avg sentence length
-               · Paragraph density
-               · Hook patterns"]
-    TONAL["Tonal Analyzer
-           · Formality score
-           · Confidence markers
-           · Humor/analogy use"]
-    STRUCT["Structural Analyzer
-            · Opening style
-            · Call-to-action pref
-            · List vs prose"]
+  subgraph ANALYSIS["Style Analysis (Algorithmic)"]
+    LEXICAL["Lexical Analyzer"
+             "· Term frequency"
+             "· Technical ratios"
+             "· Filler word density"]
+    SYNTACTIC["Syntactic Analyzer"
+               "· Avg sentence length"
+               "· Paragraph structure"
+               "· Hook type detection"]
+    TONAL["Tonal Analyzer"
+           "· Formality score"
+           "· Confidence markers"
+           "· Opinion strength"]
   end
 
   subgraph PROFILE["Style Profile (per-user)"]
-    VECTOR["Embedding Vector
-            · 768-dim style rep
-            · Updated per edit
-            · Moving average"]
-    PARAMS["Parameter Map
-            · vocab: {terms}
-            · tone: formal|conversational
-            · depth: tutorial|opinion|insight
-            · length: short|medium|long
-            · hook: question|stat|quote|story"]
+    PARAMS["Parameter Map"
+            "· tone: formal|conversational|balanced"
+            "· depth: tutorial|opinion|insight|news"
+            "· avg_length: short|medium|long"
+            "· hook_style: question|stat|quote|story|none"
+            "· vocab: {preferred_terms, avoided_terms}"
+            "· formality: 0.0–1.0"]
   end
 
   RATINGS --> LEXICAL
@@ -469,631 +562,334 @@ flowchart TB
   EDITS --> TONAL
   APPROVALS --> TONAL
   IMPORTS --> TONAL
-  RATINGS --> STRUCT
-  EDITS --> STRUCT
-  APPROVALS --> STRUCT
-  IMPORTS --> STRUCT
-
-  LEXICAL --> VECTOR
-  SYNTACTIC --> VECTOR
-  TONAL --> VECTOR
-  STRUCT --> VECTOR
 
   LEXICAL --> PARAMS
   SYNTACTIC --> PARAMS
   TONAL --> PARAMS
-  STRUCT --> PARAMS
 ```
 
-### Decision: Moving-average style profile
+**Exponential Moving Average Update:**
 
-The style profile uses an exponential moving average (EMA) of style signals rather than a point-in-time snapshot. This means:
-- **Early convergence** — After 5-10 rated drafts, the style profile is already directionally correct.
-- **Gradual drift** — As the user's writing evolves naturally, the style profile follows without abrupt jumps.
-- **No retraining** — No batch retraining cycles. Every edit and rating immediately influences the profile with a configurable learning rate.
+```
+new_profile = learning_rate * latest_signal + (1 - learning_rate) * current_profile
+```
+
+- `learning_rate` starts at 0.3 (converges fast in first 10 interactions)
+- After 50 interactions, decays to 0.1 (gradual drift)
+- Stored in Firestore as a map under `users/{userId}/styleProfile`
+- Style vectors stored in pgvector for similarity-based style matching (future: recommend style templates)
 
 ---
 
-## 4. Sequence Diagrams
+## 5. Content Generation Pipeline
 
-### 4.1 Daily Content Brief Generation
+### 5.1 Pipeline Stages Detail
+
+| Stage | Type | Timeout | Retries | Cacheable |
+|-------|------|---------|---------|-----------|
+| Context Aggregator | Algorithmic | 5s | 0 | Per-user/per-day |
+| Idea Generator | LLM (Llama 3.3 70B) | 20s | 1 | No |
+| Draft Composer | LLM (Qwen3 32B) | 30s | 2 | No |
+| Style Refiner | Algorithmic | 3s | 0 | No |
+| Quality Gate | LLM (Llama 4 Scout 17B) | 15s | 1 | No |
+
+### 5.2 Model Mapping
+
+| Task | Recommended Model | Fallback Model | Groq Free Tier Limit |
+|------|------------------|----------------|--------------------- |
+| Content idea generation | Llama 3.3 70B | DeepSeek R1 Distill 70B | 30 RPM / 6K TPM |
+| Draft writing | Qwen3 32B | Llama 4 Scout 17B | 30 RPM / 6K TPM |
+| Style refinement | (Algorithmic) | — | — |
+| Quality gate | Llama 4 Scout 17B | Mixtral 8x7B | 30 RPM / 6K TPM |
+| Embeddings | Mistral Embed (via Mistral AI) | — | 1B tokens/month |
+
+### 5.3 Groq Rate Limit Management
+
+With 30 RPM and ~14.4K requests/day on Groq's free tier, we allocate:
+
+| Use Case | Requests/User/Day | Users | Total/Day |
+|----------|-------------------|-------|-----------|
+| Daily brief generation | 2 (ideas + draft) | 500 | 1,000 |
+| User-initiated drafts | 3 | 500 | 1,500 |
+| Quality gate | 1 per draft | — | 2,500 |
+| Style analysis import | 1 (initial) | — | 500 |
+| **Total** | | | **5,500** |
+
+At 5,500 requests/day, we stay well within Groq's ~14,400 daily limit at 500 users.
+
+**Queue Strategy:** Content generation requests are enqueued via Cloud Tasks with a rate limiter that respects Groq's 30 RPM limit. If the queue backs up, users see a "generation in progress" state with real-time status via Firestore.
+
+---
+
+## 6. Sequence Diagrams
+
+### 6.1 Daily Content Brief Generation
 
 ```mermaid
 sequenceDiagram
   participant User
   participant Web as Next.js App
-  participant API as FastAPI Gateway
-  participant Brief as Brief Service
-  participant GitHub as GitHub Service
-  participant KB as Knowledge Base Service
-  participant Trend as Trend Service
-  participant Content as Content Engine
-  participant Style as Style Service
-  participant LLM as LLM Provider
-  participant DB as SQLite
-  participant Cache as Redis
+  participant BriefFn as brief.generateDailyBriefs
+  participant ContentFn as content.generateIdeas
+  participant Groq as Groq API
+  participant StyleFn as style.getProfile
+  participant Github as github.getRecentActivity
+  participant Trend as trend.getTrending
+  participant FS as Firestore
+  participant Vectors as Supabase pgvector
 
-  Note over User,Cache: Scheduled daily at 8:00 AM (user's timezone)
+  Note over User,Vectors: Scheduled every 6 hours via onSchedule
 
-  Brief->>Brief: Cron trigger: generate_briefs()
-  Brief->>Cache: Get active users due for brief
-  Cache-->>Brief: [user_ids]
+  BriefFn->>FS: Query users where nextBriefAt < now
+  FS-->>BriefFn: [active_users]
 
   loop per user
-    Brief->>DB: Get user profile + preferences
-    DB-->>Brief: profile, expertise, cadence
+    BriefFn->>FS: Get user profile + expertise + preferences
+    FS-->>BriefFn: {profile, expertise, cadence}
 
     par GitHub Context
-      Brief->>GitHub: get_recent_activity(user_id)
-      GitHub->>Cache: Check cached activity
-      Cache-->>GitHub: cached or miss
+      BriefFn->>Github: getRecentActivity(userId)
+      Github->>FS: Check last sync, return cached or miss
       alt cache miss
-        GitHub->>GitHub: analyze_repos(user_id)
-        GitHub->>DB: Store fresh results
+        Github->>Github: analyzeRepos(userId)
+        Github->>FS: Store fresh results
       end
-      GitHub-->>Brief: {recent_commits, prs, repos}
+      Github-->>BriefFn: {commits, prs, languages}
     and KB Context
-      Brief->>KB: get_recent_knowledge(user_id, limit=20)
-      KB->>DB: Query recent saves
-      DB-->>KB: [{links, notes, tags}]
-      KB->>KB: Summarize items
-      KB-->>Brief: {recent_items, top_tags}
+      BriefFn->>Vectors: semanticSearch(userId, limit=10, query=latest)
+      Vectors-->>BriefFn: [{saved_items, tags, summaries}]
     and Trending Topics
-      Brief->>Trend: get_trending(user_id, expertise)
-      Trend->>DB: Get user expertise areas
-      DB-->>Trend: [expertise_areas]
-      Trend->>Trend: Score trends by relevance
-      Trend-->>Brief: [{topic, score, articles}]
+      BriefFn->>Trend: getRelevant(userId, expertise)
+      Trend->>FS: get expertise areas
+      Trend-->>BriefFn: [{topic, score, sources}]
     end
 
-    Brief->>Brief: Aggregate all contexts
-    Brief->>Content: generate_ideas(aggregated_context)
-    Content->>Style: get_style_profile(user_id)
-    Style-->>Content: {vector, params}
-    Content->>LLM: generate_idea_set(context, style)
-    LLM-->>Content: [{idea, angle, reason}]
-    Content->>Content: Score + rank ideas
-    Content-->>Brief: [ranked_ideas]
+    BriefFn->>StyleFn: getStyleProfile(userId)
+    StyleFn->>FS: get style params
+    FS-->>StyleFn: {tone, depth, length, hook}
+    StyleFn-->>BriefFn: {style}
 
-    Brief->>Brief: Build brief document
-    Brief->>DB: Store brief
-    Brief->>Brief: queue_notification(user_id, "brief_ready")
+    BriefFn->>BriefFn: Build aggregated context
+    BriefFn->>ContentFn: generateIdeas(context, style)
+    ContentFn->>Groq: Generate 5 ranked ideas (Llama 3.3 70B)
+    Groq-->>ContentFn: [{idea, angle, relevance, novelty}]
+    ContentFn-->>BriefFn: [ranked_ideas]
+
+    BriefFn->>FS: Save brief document
+    BriefFn->>FS: Update user.nextBriefAt
   end
 
-  Web->>API: GET /briefs/today (authenticated)
-  API->>Brief: get_today_brief(user_id)
-  Brief->>DB: Query latest brief
-  DB-->>Brief: {brief}
-  Brief->>Cache: Cache brief (TTL: 1 hour)
-  Brief-->>API: {ideas, context_summary}
-  API-->>Web: {brief}
+  User->>Web: Opens BrandOS dashboard
+  Web->>FS: getDoc(user/briefs/latest)
+  FS-->>Web: {ideas, context_summary}
   Web-->>User: Display content brief
 ```
 
-### Decision: Cron-triggered brief generation, not real-time
-
-Briefs are generated on a fixed schedule (user-configurable time) rather than on-demand for two reasons:
-1. **Cost efficiency** — Generating a brief requires 3-10 LLM calls per user. Doing this on every page load would be prohibitively expensive. Batch generation reduces LLM costs by 80%+.
-2. **User habit** — A predictable delivery time (morning brief) builds habit. The brief arriving at the same time every day becomes a ritual, which the PRD identifies as critical for retention.
-
-### 4.2 Full Content Lifecycle
+### 6.2 User Draft Generation (Interactive)
 
 ```mermaid
 sequenceDiagram
   participant User
   participant Web as Next.js App
-  participant API as FastAPI Gateway
-  participant Content as Content Engine
-  participant Style as Style Service
-  participant LLM as LLM Provider
-  participant Platform as Platform Service
-  participant LI as LinkedIn API
-  participant DB as SQLite
-
-  User->>Web: Opens content brief
-  Web->>API: GET /briefs/today
-  API->>Content: get_brief(user_id)
-  Content-->>API: {ideas}
-  API-->>Web: {ideas}
+  participant VercelAI as Vercel AI SDK
+  participant ContentFn as content.generateDraft (callable)
+  participant Groq as Groq API
+  participant StyleFn as style.getProfile
+  participant FS as Firestore
+  participant Tasks as Cloud Tasks
 
   User->>Web: Selects idea: "Generate draft"
-  Web->>API: POST /content/draft {idea_id, tone, length}
-  API->>Content: generate_draft(idea_id, params)
+  Web->>ContentFn: invoke({ideaId, tone, length})
+  ContentFn->>StyleFn: getStyleProfile(userId)
+  StyleFn->>FS: get styleProfile subcollection
+  FS-->>StyleFn: {styleParams, voiceVector}
+  StyleFn-->>ContentFn: style profile
 
-  Content->>Content: Retrieve idea context
-  Content->>Style: get_style_profile(user_id)
-  Style-->>Content: {style_params, voice_vector}
+  ContentFn->>FS: get idea + context from brief
+  FS-->>ContentFn: {title, description, context}
 
-  Content->>Content: Build prompt (context + style + params)
-  Content->>LLM: generate_draft(prompt)
-  LLM-->>Content: {draft_text}
+  ContentFn->>ContentFn: Build draft prompt
+  ContentFn->>Groq: POST /chat/completions (Qwen3 32B)
+  Groq-->>ContentFn: {draftText}
 
-  Content->>Content: Apply style refinement
-  Content->>Content: Run quality gates
-  Content->>DB: Save draft (status: draft)
-  DB-->>Content: {draft_id}
+  ContentFn->>ContentFn: Apply style refinement (algorithmic)
+  ContentFn->>Groq: POST /chat/completions (Llama 4 Scout 17B, quality gate)
+  Groq-->>ContentFn: {verdict: PASS, score: 0.85}
 
-  Content-->>API: {draft_id, preview}
-  API-->>Web: {draft}
+  ContentFn->>FS: create draft document
+  ContentFn-->>Web: {draftId, preview, qualityScore}
 
-  User->>Web: Edits draft (inline)
-  Web->>API: PUT /content/draft/{id} {revised_text}
-  API->>Content: update_draft(id, revised)
-  Content->>DB: Save revision
-  Content->>Style: log_edit(user_id, original, revised)
-  DB-->>Content: {updated}
-  API-->>Web: {saved}
+  Web->>Web: AI SDK useChat (streaming fallback for interactive generation)
+  Web-->>User: Display draft in editor
+
+  User->>Web: Edits draft
+  Web->>ContentFn: updateDraft({draftId, revisedText})
+  ContentFn->>FS: Save revision
+  alt First edit
+    ContentFn->>Tasks: enqueue analyzeStyleTask({userId, original, revised})
+  end
+  ContentFn-->>Web: {saved}
 
   User->>Web: Rates draft 4/5
-  Web->>API: POST /content/draft/{id}/rate {score: 4}
-  API->>Style: record_rating(user_id, draft_id, score)
-  Style->>DB: Update style profile weights
-  API-->>Web: {rating_recorded}
+  Web->>ContentFn: rateDraft({draftId, score: 4, dimensions})
+  ContentFn->>FS: Save rating
+  ContentFn->>FS: Update style profile EMA
+  ContentFn-->>Web: {ratingRecorded}
+```
 
-  User->>Web: Approves and schedules post
-  Web->>API: POST /content/draft/{id}/schedule {platform, datetime}
-  API->>Platform: schedule_post(draft_id, platform, datetime)
-  Platform->>DB: Create schedule entry
-  Platform->>Platform: Schedule job in queue
-  API-->>Web: {scheduled}
+### 6.3 LinkedIn Publish (Async via Cloud Tasks)
 
-  Note over User,LI: Scheduled time arrives
+```mermaid
+sequenceDiagram
+  participant User
+  participant Web as Next.js App
+  participant ContentFn as content.schedulePost (callable)
+  participant FS as Firestore
+  participant Tasks as Cloud Tasks
+  participant PublishFn as publish.linkedinPost (task handler)
+  participant LinkedIn as LinkedIn API
 
-  Platform->>Platform: Dequeue scheduled post
-  Platform->>Platform: Get draft + user tokens
-  Platform->>Platform: Format for LinkedIn
-  Platform->>LI: POST /ugcPosts (OAuth)
-  alt Success
-    LI-->>Platform: {post_id, url}
-    Platform->>DB: Update post status (published)
-    Platform->>Platform: Queue analytics fetch
-  else Failure
-    LI-->>Platform: {error}
-    Platform->>Platform: Retry with backoff
-    alt Retries exhausted
-      Platform->>DB: Update status (failed)
-      Platform->>Platform: Notify user
+  User->>Web: Approves draft, clicks "Schedule"
+  Web->>ContentFn: invoke({draftId, scheduledFor, platform: "linkedin"})
+  ContentFn->>FS: Update draft status → "scheduled"
+  ContentFn->>FS: Create scheduledPost document
+  ContentFn->>Tasks: enqueue publishPostTask({userId, draftId, scheduledFor})
+  ContentFn-->>Web: {scheduled: true, postId}
+
+  Note over User,LinkedIn: Scheduled time arrives
+
+  Tasks->>PublishFn: Execute task
+  PublishFn->>FS: Get draft + user LinkedIn tokens
+  FS-->>PublishFn: {draftBody}, {encryptedTokens}
+  PublishFn->>PublishFn: Decrypt tokens, format for LinkedIn
+  PublishFn->>LinkedIn: POST /rest/posts (OAuth 2.0)
+  
+  alt Success (201)
+    LinkedIn-->>PublishFn: {id, urn, url}
+    PublishFn->>FS: Update post status → "published"
+    PublishFn->>FS: Save external post ID
+    PublishFn-->>Tasks: Acknowledge success
+  else Rate Limited (429)
+    LinkedIn-->>PublishFn: {error, retryAfter}
+    PublishFn-->>Tasks: Retry with backoff (retryAfter + jitter)
+  else Token Expired (401)
+    LinkedIn-->>PublishFn: {error, "token_expired"}
+    PublishFn->>PublishFn: Attempt token refresh
+    alt Refresh succeeds
+      PublishFn->>FS: Update stored tokens
+      PublishFn->>LinkedIn: Retry with new token
+    else Refresh fails
+      PublishFn->>FS: Update connection status → "needs_reconnect"
+      PublishFn-->>Tasks: Fail task, notify user
     end
   end
 ```
 
-### Decision: Draft saved before user edits
+---
 
-The draft is persisted to the database immediately after generation, before the user makes any edits. This ensures:
-1. **No data loss** — If the user closes the tab, the generated draft is recoverable.
-2. **Edit tracking** — The Service layer can diff the original vs. edited version to extract style learning signals.
-3. **Comparison** — Users can revert to the original AI-generated version at any point.
+## 7. Memory Architecture
+
+BrandOS uses Firestore as the primary memory store. Different memory types map to different access patterns.
+
+### 7.1 Memory Types
+
+| Type | Duration | Store | Access Pattern |
+|------|----------|-------|----------------|
+| **User Profile** | Permanent | Firestore doc | Frequent reads, rare writes |
+| **Style Profile** | Permanent | Firestore doc (EMA) | Written per interaction, read per generation |
+| **Knowledge Base** | Permanent | Firestore subcollection + pgvector | Written by user, read by agents |
+| **Content Drafts** | 90 days | Firestore subcollection + Storage (exports) | Written by pipeline, read by user |
+| **Schedule** | Until published | Firestore subcollection | Written by user, read by scheduler |
+| **Briefs** | 7 days | Firestore subcollection | Written by agent, read by user |
+| **Session** | Browser session | Client memory + Firestore cache | No server-side session |
+
+### 7.2 Firestore Document Size Budget
+
+Firestore limits: 1 MiB per document, 20 levels of subcollections, 1 write/second per document (burst up to 500).
+
+| Document | Estimated Size | Growth Pattern | Concern? |
+|----------|---------------|----------------|----------|
+| `users/{id}` | 5-10 KB | Grows with style profile + preferences | No |
+| `users/{id}/knowledge/{item}` | 50-200 KB | 1 per saved link/note. Summary + extracted text drive size | Extract text > 100KB → store in Cloud Storage, reference by path |
+| `users/{id}/drafts/{draft}` | 10-50 KB | 1 per generated draft. Body + revisions > 50KB | Revisions over 10 → archive to Storage, keep latest 3 in Firestore |
+| `users/{id}/briefs/{brief}` | 5-15 KB | 1 per daily brief. 3-5 ideas with context | No |
+| `trendingTopics/{id}` | 2-5 KB | ~50 topics total | No |
+
+**Mitigation Strategy:** Any field exceeding 50KB (extracted text, full draft history) is stored in Cloud Storage with a reference path in Firestore.
 
 ---
 
-## 5. Request Flow
+## 8. Knowledge Flow
 
-### 5.1 API Request Lifecycle
-
-```mermaid
-flowchart LR
-  subgraph CLIENT["Client"]
-    B["Browser (Next.js SPA)"]
-  end
-
-  subgraph EDGE["Edge / CDN"]
-    CF["Cloudflare / Vercel Edge
-        · TLS termination
-        · DDoS protection
-        · Cache static assets
-        · Bot detection"]
-  end
-
-  subgraph BFF["BFF Layer (Next.js API Routes)"]
-    ROUTER["· Route matching
-            · Auth cookie parsing
-            · Session validation
-            · Request transformation"]
-  end
-
-  subgraph GATEWAY["API Gateway (FastAPI)"]
-    MIDDLEWARE["Middleware Stack
-               1. Request ID injection
-               2. Rate limiter check
-               3. JWT verification
-               4. Tenant resolution
-               5. Request logging"]
-    ROUTES["Route Handler
-            · Validate input (Pydantic)
-            · Authorize action
-            · Route to service"]
-  end
-
-  subgraph SERVICES["Service Layer"]
-    SRV["Business Logic
-        · Pure domain logic
-        · No HTTP concerns
-        · Emit domain events"]
-  end
-
-  subgraph DATA["Data Layer"]
-    DB[(Database)]
-    CACHE[(Cache)]
-  end
-
-  B -->|"HTTPS"| EDGE
-  EDGE -->|"Cache miss"| BFF
-  BFF -->|"REST"| GATEWAY
-  MIDDLEWARE --> ROUTES
-  ROUTES --> SRV
-  SRV --> DB
-  SRV --> CACHE
-  CACHE -.->|"Cache hit bypasses service"| SRV
-```
-
-### 5.2 Request Types and Routing
-
-| Request Type | Example | BFF | Gateway | Service | Caching | Async |
-|-------------|---------|-----|---------|---------|---------|-------|
-| **Synchronous CRUD** | GET /profiles/me | Parse cookie | Auth + route | Profile Service | User profile: TTL 5min | No |
-| **Content Generation** | POST /content/draft | Redirect | Auth + route | Content Engine | No (unique per request) | Yes (Arq) |
-| **Brief Fetch** | GET /briefs/today | Redirect | Auth + route | Brief Service | Brief: TTL 1hr | No |
-| **Platform Publish** | POST /content/publish | Redirect | Auth + route | Platform Service | No | Yes (Arq) |
-| **OAuth Handshake** | GET /auth/linkedin/callback | Handle redirect | Auth Service | Token storage | No | No |
-| **Analytics Query** | GET /analytics/overview | Redirect | Auth + route | Analytics Service | Aggregated: TTL 6hr | No |
-
----
-
-## 6. Data Flow
-
-### 6.1 Data Ingestion Flow
-
-```mermaid
-flowchart TB
-  subgraph SOURCES["Data Sources"]
-    GITHUB_DIR["GitHub
-               · Public repos
-               · Commits
-               · Pull requests
-               · Languages"]
-    LINKEDIN_DIR["LinkedIn
-                  · Profile
-                  · Posts
-                  · Engagement"]
-    USER_DIR["User
-              · Links saved
-              · Notes written
-              · Papers uploaded
-              · Draft edits
-              · Ratings"]
-    TREND_DIR["Trend Sources
-               · RSS feeds
-               · Twitter API
-               · Hacker News
-               · Reddit
-               · ArXiv"]
-  end
-
-  subgraph INGESTION["Ingestion Layer"]
-    GITHUB_SYNC["GitHub Sync
-                 · Poll every 6hrs
-                 · Webhook for pushes
-                 · Diff new vs cached"]
-    LI_SYNC["LinkedIn Sync
-             · Daily engagement poll
-             · New posts detected
-             · Rate-limit aware"]
-    KB_INGEST["KB Ingestion
-               · URL scraping
-               · Summary generation
-               · Embedding creation
-               · Tag suggestion"]
-    TREND_INGEST["Trend Ingestion
-                  · Scheduled scraping
-                  · Deduplication
-                  · Relevance scoring
-                  · Source quality"]
-  end
-
-  subgraph STORAGE["Stored Data"]
-    SQLITE[(SQLite)]
-    CHROMA[(ChromaDB embeddings)]
-    S3[(S3 / R2)]
-  end
-
-  subgraph PIPELINE["Processing Pipeline"]
-    AGG["Context Aggregator
-         · Merge signals
-         · Weight by recency
-         · Deduplicate
-         · Score relevance"]
-  end
-
-  GITHUB_DIR --> GITHUB_SYNC
-  LINKEDIN_DIR --> LI_SYNC
-  USER_DIR --> KB_INGEST
-  TREND_DIR --> TREND_INGEST
-
-  GITHUB_SYNC --> PG
-  LI_SYNC --> PG
-  KB_INGEST --> PG
-  KB_INGEST --> VEC
-  KB_INGEST --> S3
-  TREND_INGEST --> PG
-
-  PG --> AGG
-  VEC --> AGG
-```
-
-### Decision: Poll-based sync with webhooks as optimization
-
-GitHub and LinkedIn use polling for MVP because they are read-only data sources — the data doesn't need to be real-time. A 6-hour poll interval is sufficient: users don't expect content briefs to reflect commits made 10 minutes ago. Webhooks are a Phase 2 optimization that reduces API calls and improves freshness. Trend sources are inherently poll-based (RSS, periodic scrapes).
-
----
-
-## 7. Agent Flow
-
-The Content Engine operates through a series of internal agents — not autonomous AI agents, but deterministic orchestrators that manage the generation pipeline stages.
-
-```mermaid
-flowchart TB
-  subgraph ORCHESTRATOR["Content Orchestrator Agent"]
-    direction TB
-    DECOMPOSE["1. Decompose Request
-               · Parse tone, length, format
-               · Identify required signals
-               · Set quality thresholds"]
-    ASSIGN["2. Assign Tasks
-            · Context gathering
-            · Idea generation
-            · Draft writing
-            · Style refinement
-            · Quality check"]
-    EXECUTE["3. Execute Pipeline
-             · Sequential stage execution
-             · Stage timeout management
-             · Retry decision per stage"]
-    VERIFY["4. Verify Output
-            · Quality gate check
-            · Authenticity score
-            · Hallucination scan"]
-    RETURN["5. Return to User
-            · Draft preview
-            · Quality report
-            · Suggested edits"]
-  end
-
-  subgraph PIPELINE["Generation Stages"]
-    STAGE1["Stage 1: Context Gatherer
-            Timeout: 10s
-            Retries: 1
-            · GitHub activity
-            · KB snippets
-            · Trending topics"]
-    STAGE2["Stage 2: Idea Generator
-            Timeout: 15s
-            Retries: 1
-            · Signal fusion
-            · Novelty check
-            · Rank proposals"]
-    STAGE3["Stage 3: Draft Writer
-            Timeout: 30s
-            Retries: 2
-            · LLM call
-            · Structured output
-            · Code formatting"]
-    STAGE4["Stage 4: Style Refiner
-            Timeout: 10s
-            Retries: 0 (deterministic)
-            · Apply voice profile
-            · Adjust language
-            · Check consistency"]
-    STAGE5["Stage 5: Quality Gate
-            Timeout: 5s
-            Retries: 0
-            · Fact check
-            · Hallucination scan
-            · Readability score"]
-  end
-
-  DECOMPOSE --> ASSIGN
-  ASSIGN --> EXECUTE
-  EXECUTE --> STAGE1
-  STAGE1 --> STAGE2
-  STAGE2 --> STAGE3
-  STAGE3 --> STAGE4
-  STAGE4 --> STAGE5
-  STAGE5 --> VERIFY
-  VERIFY --> RETURN
-
-  STAGE3 -.->|"Quality fail, regenerate"| STAGE3
-  STAGE5 -.->|"Verdict: FAIL"| ORCHESTRATOR
-```
-
-### Decision: Deterministic orchestrator, not autonomous agent
-
-The Content Orchestrator is a deterministic state machine, not an autonomous AI agent. This is intentional:
-1. **Predictable latency** — Each stage has a fixed timeout. No infinite loops.
-2. **Debugable** — Every stage transition is logged. We can replay a failed generation.
-3. **Cost control** — We control exactly how many LLM calls happen per generation (1-3, depending on retries).
-4. **Testable** — The orchestrator can be unit tested with mocked stages.
-
----
-
-## 8. Memory Flow
-
-BrandOS maintains multiple memory stores with different persistence characteristics.
-
-```mermaid
-flowchart TB
-  subgraph MEMORY_TYPES["Memory Architecture"]
-    SHORT["Short-Term Memory
-           Duration: Session (hours)
-           Store: Redis
-           · Current editing session
-           · Recent undo history
-           · Unsaved draft state"]
-
-    WORKING["Working Memory
-             Duration: Days
-             Store: Redis + SQLite
-             · Today's brief context
-             · Recent ratings/edits
-             · In-progress drafts"]
-
-    LONG["Long-Term Memory
-          Duration: Permanent
-          Store: SQLite + ChromaDB
-          · Style profile (EMA)
-          · Voice fingerprint vector
-          · Content history
-          · Knowledge base"]
-
-    EPISODIC["Episodic Memory
-              Duration: 90 days
-              Store: SQLite + S3
-              · Draft revision history
-              · Edit diffs
-              · Generation artifacts"]
-
-    STRATEGIC["Strategic Memory
-               Duration: Permanent
-               Store: SQLite
-               · User preferences
-               · Content categories
-               · Posting cadence
-               · Expertise areas"]
-  end
-
-  subgraph ACCESS["Memory Access Patterns"]
-    READ["Read
-          · Fast path: Redis
-          · Slow path: SQLite
-          · Emb query: ChromaDB"]
-    WRITE["Write
-           · Sync: user actions
-           · Async: background
-           · Batch: analytics"]
-    EVICT["Eviction
-           · LRU for short-term
-           · TTL for working
-           · Archival for episodic"]
-  end
-
-  SHORT --- READ
-  SHORT --- WRITE
-  SHORT --- EVICT
-  WORKING --- READ
-  WORKING --- WRITE
-  WORKING --- EVICT
-  LONG --- READ
-  LONG --- WRITE
-  EPISODIC --- WRITE
-  EPISODIC --- EVICT
-  STRATEGIC --- READ
-  STRATEGIC --- WRITE
-```
-
-### Decision: Five-memory architecture
-
-This is inspired by cognitive architecture research (Atkinson-Shiffrin + Nuxoll & Laird's episodic memory for Soar agents). The key insight: different memory types have different access patterns, durability requirements, and data structures. Storing them in the same system would force trade-offs. By separating them:
-
-- **Short-Term** uses Redis (fast, volatile, TTL-based)
-- **Working** uses Redis with SQLite persistence (fast reads, durable when promoted)
-- **Long-Term** uses SQLite + ChromaDB (ACID, relational, queryable, plus vector search)
-- **Episodic** uses SQLite + S3 (relational metadata, blob storage for diffs)
-- **Strategic** uses SQLite (rarely written, frequently read, relational)
-
----
-
-## 9. Knowledge Flow
-
-The Knowledge Base is the user's curated signal repository. It feeds the Content Engine and improves with every interaction.
+### 8.1 Knowledge Ingestion Pipeline
 
 ```mermaid
 flowchart TB
   subgraph INPUT["Knowledge Inputs"]
     MANUAL["Manual Save
-            · Paste URL
-            · Write note
-            · Upload PDF
-            · Tag assignment"]
+             · Paste URL → scrape + summarize
+             · Write note → store as-is
+             · Upload file → extract text"]
     AUTO["Auto-Capture
-          · GitHub linked issues
-          · LinkedIn saved posts
-          · Browser extension (P2)
-          · Email forwarding (P3)"]
+           · GitHub linked issues
+           · LinkedIn saved posts
+           · Browser bookmark (P2)"]
     IMPORT["Bulk Import
-            · Twitter bookmarks
-            · Pocket/Instapaper
-            · Are.na
-            · Obsidian export"]
+             · Twitter bookmarks
+             · Pocket export
+             · Obsidian notes"]
   end
 
-  subgraph PROCESS["Knowledge Processing"]
+  subgraph PROCESS["Cloud Functions Processing"]
     EXTRACT["Content Extraction
-             · URL → readable text
-             · PDF → text extraction
-             · Metadata parsing
-             · Author/source extraction"]
+              · URL → readability (cheerio)
+              · PDF → text (pdf-parse)
+              · Metadata extraction"]
     SUMMARIZE["Summarization
-               · TL;DR generation
-               · Key insight extraction
-               · Technical level rating
-               · Related topics"]
+               · Via Groq (Llama 4 Scout 17B)
+               · 2-3 sentence TL;DR
+               · Key insight extraction"]
     EMBED["Embedding
-           · Vector generation
-           · 768-dim representation
-           · Multi-modal (text + tags)
-           · User-specific space"]
+            · Via Mistral AI (mistral-embed)
+            · 1024-dim vector
+            · Stored in pgvector"]
     CLASSIFY["Classification
-              · Auto-tagging
+              · Auto-tagging (via Groq)
               · Category assignment
-              · Expertise mapping
-              · Content type"]
+              · Expertise mapping"]
   end
 
-  subgraph STORE["Knowledge Store"]
-    SQLITE[(SQLite
-        · Items
-        · Tags
-        · Relationships
-        · Metadata)]
-    CHROMA[(ChromaDB
-         · Embeddings
-         · Similarity index)]
-    S3[(S3 / R2
-        · Raw files
-        · Extracted text
-        · Screenshots)]
+  subgraph STORE["Storage"]
+    FS_STORE[(Firestore
+               · Metadata
+               · Summary
+               · Tags
+               · Ref to raw)]
+    VEC_STORE[(Supabase pgvector
+                · Embeddings
+                · HNSW index
+                · user_id scoped)]
+    FILE_STORE[(Cloud Storage
+                 · Raw extracted text
+                 · Uploaded files
+                 · Screenshots)]
   end
 
-  subgraph RETRIEVAL["Knowledge Retrieval"]
-    SEARCH["Search
-            · Keyword (full-text)
-            · Semantic (vector)
-            · Hybrid (weighted)
-            · Faceted (tag + type)"]
+  subgraph RETRIEVAL["Retrieval Patterns"]
+    SEARCH["Hybrid Search
+             · FTS via pgvector
+             · Semantic via pgvector
+             · RRF merge (k=60)
+             · Filters: user_id, tags, date"]
     CONTEXT["Context Builder
-             · Recent items
-             · Top tags by week
-             · {expertise} ∩ {trending}
-             · Random sampling"]
+              · Recent items (last 7 days)
+              · Top tags (rolling 30 days)
+              · Random diversity sample
+              · Expertise cross-section"]
     RELATED["Related Discovery
-             · Similar items
-             · Complementary topics
-             · Contradictory sources
-             · Author tracking"]
-  end
-
-  subgraph CONSUMPTION["Knowledge Consumers"]
-    BRIEF_SVC["Brief Service
-               · Context for daily brief
-               · Topic diversity check"]
-    CONTENT_ENG["Content Engine
-                 · Idea seed generation
-                 · Factual grounding
-                 · Quote sourcing
-                 · Reference linking"]
-    STYLE_SVC["Style Service
-               · Vocab enrichment
-               · Domain terminology
-               · Reference patterns"]
+              · Similar items (vector)
+              · Same tags (Firestore)
+              · Same source type"]
   end
 
   MANUAL --> EXTRACT
@@ -1102,1205 +898,331 @@ flowchart TB
   EXTRACT --> SUMMARIZE
   EXTRACT --> CLASSIFY
   SUMMARIZE --> EMBED
-  EMBED --> STORE
-  CLASSIFY --> STORE
 
-  SEARCH --> STORE
-  CONTEXT --> STORE
-  RELATED --> STORE
+  subgraph TRIGGERS["Firestore Triggers"]
+    EMBED_TRIGGER["onKnowledgeItemWrite
+                    · Detects new/modified item
+                    · Calls summarize + embed
+                    · Updates status"]
+  end
 
-  CONTEXT --> BRIEF_SVC
-  SEARCH --> CONTENT_ENG
-  CONTEXT --> CONTENT_ENG
-  RELATED --> CONTENT_ENG
-  STYLE_SVC --> STORE
+  EMBED_TRIGGER --> EXTRACT
+  EMBED_TRIGGER --> SUMMARIZE
+  EMBED_TRIGGER --> EMBED
+
+  EMBED --> VEC_STORE
+  SUMMARIZE --> FS_STORE
+  CLASSIFY --> FS_STORE
+  EXTRACT --> FILE_STORE
+
+  SEARCH --> VEC_STORE
+  SEARCH --> FS_STORE
+  CONTEXT --> FS_STORE
+  RELATED --> VEC_STORE
+  RELATED --> FS_STORE
 ```
 
-### Decision: Hybrid search (full-text + vector)
+### 8.2 Hybrid Search Implementation
 
-Knowledge retrieval uses a hybrid approach: SQLite FTS5 full-text search for keyword queries (tag search, title search) combined with ChromaDB vector similarity for semantic search. The hybrid search query uses Reciprocal Rank Fusion (RRF) or a configurable weight ratio (default 0.3 keyword + 0.7 vector) to merge results. This handles both "find the article I saved about attention" (keyword) and "find articles similar to this concept" (vector).
+```typescript
+interface SearchResult {
+  itemId: string;
+  text: string;
+  score: number;
+  source: 'keyword' | 'semantic';
+}
+
+// RRF merge of keyword + semantic results
+function hybridSearch(userId: string, query: string, limit: number = 10) {
+  // 1. Full-text search via pgvector's built-in TSVector
+  const keywordResults = await supabase.rpc('fts_search', {
+    user_id: userId,
+    query_text: query,
+    result_limit: limit * 2
+  });
+
+  // 2. Semantic search via pgvector
+  const embedding = await generateEmbedding(query);
+  const semanticResults = await supabase.rpc('vector_search', {
+    user_id: userId,
+    query_embedding: embedding,
+    match_threshold: 0.7,
+    match_count: limit * 2
+  });
+
+  // 3. RRF merge with k=60
+  return reciprocalRankFusion(keywordResults, semanticResults, limit, 60);
+}
+```
 
 ---
 
-## 10. Database Flow
+## 9. Security Architecture
 
-### 10.1 Entity Relationship Diagram
+### 9.1 Authentication Flow
 
 ```mermaid
-erDiagram
-  User ||--o{ UserAuth : has
-  User ||--o{ UserProfile : has
-  User ||--o{ UserPreference : configures
-  User ||--o{ ExpertiseArea : defines
-  User ||--o{ StyleProfile : owns
-  User ||--o{ KnowledgeItem : curates
-  User ||--o{ ContentDraft : creates
-  User ||--o{ ScheduledPost : schedules
-  User ||--o{ ContentBrief : receives
-  User ||--o{ PlatformConnection : connects
-  User ||--o{ NotificationLog : receives
-  User ||--o{ Rating : gives
+sequenceDiagram
+  participant User
+  participant Web as Next.js App
+  participant FirebaseAuth as Firebase Auth
+  participant LinkedIn as LinkedIn OAuth
+  participant GitHub as GitHub OAuth
 
-  PlatformConnection ||--o{ PlatformToken : stores
+  Note over User,GitHub: Primary Auth (Firebase Auth handles this)
 
-  KnowledgeItem ||--o{ KnowledgeTag : tagged_with
-  KnowledgeItem ||--o{ KnowledgeEmbedding : has
+  User->>Web: Click "Sign in with Google"
+  Web->>FirebaseAuth: signInWithPopup(googleProvider)
+  FirebaseAuth-->>Web: {user, credential}
+  Web->>FirebaseAuth: Get ID token
+  FirebaseAuth-->>Web: idToken (JWT, 1 hour)
+  Web->>Web: Set auth state → Firestore security rules use this
 
-  ContentDraft ||--o{ DraftRevision : has
-  ContentDraft ||--o{ Rating : receives
-  ContentDraft ||--o{ ScheduledPost : scheduled_as
+  Note over User,GitHub: Platform Connection (LinkedIn, GitHub) — separate OAuth
 
-  ScheduledPost ||--o{ PublishLog : logged
-
-  StyleProfile ||--o{ StyleSignal : built_from
-
-  ContentBrief ||--o{ BriefIdea : contains
-
-  User {
-    uuid id PK
-    string email UK
-    string display_name
-    timestamp created_at
-    timestamp last_active_at
-  }
-
-  UserProfile {
-    uuid id PK
-    uuid user_id FK
-    string bio
-    string avatar_url
-    string linkedin_url
-    string github_username
-    jsonb expertise_areas
-    timestamp updated_at
-  }
-
-  UserPreference {
-    uuid id PK
-    uuid user_id FK UK
-    string posting_cadence
-    string timezone
-    int brief_hour
-    string default_tone
-    string default_length
-    boolean digest_enabled
-  }
-
-  ExpertiseArea {
-    uuid id PK
-    uuid user_id FK
-    string name
-    string category
-    int priority
-    jsonb keywords
-  }
-
-  PlatformConnection {
-    uuid id PK
-    uuid user_id FK
-    string platform
-    string external_user_id
-    timestamp connected_at
-    timestamp last_sync_at
-    boolean active
-  }
-
-  PlatformToken {
-    uuid id PK
-    uuid connection_id FK
-    text encrypted_access_token
-    text encrypted_refresh_token
-    timestamp expires_at
-    jsonb token_metadata
-  }
-
-  KnowledgeItem {
-    uuid id PK
-    uuid user_id FK
-    string url
-    string title
-    text summary
-    text extracted_text
-    string source_type
-    string content_type
-    jsonb metadata
-    int reading_time_minutes
-    timestamp saved_at
-    timestamp updated_at
-  }
-
-  KnowledgeTag {
-    uuid id PK
-    uuid knowledge_item_id FK
-    string tag
-    boolean auto_generated
-  }
-
-  KnowledgeEmbedding {
-    uuid id PK
-    uuid knowledge_item_id FK
-    vector embedding
-    string model_version
-  }
-
-  ContentDraft {
-    uuid id PK
-    uuid user_id FK
-    string title
-    text body
-    string status
-    string tone
-    string length
-    string content_type
-    jsonb generation_metadata
-    jsonb quality_scores
-    uuid source_idea_id
-    timestamp created_at
-    timestamp updated_at
-  }
-
-  DraftRevision {
-    uuid id PK
-    uuid draft_id FK
-    text body
-    text diff
-    string change_source
-    timestamp created_at
-  }
-
-  ScheduledPost {
-    uuid id PK
-    uuid draft_id FK
-    uuid user_id FK
-    string platform
-    timestamp scheduled_for
-    string status
-    string external_post_id
-    timestamp published_at
-  }
-
-  PublishLog {
-    uuid id PK
-    uuid scheduled_post_id FK
-    string platform
-    string status
-    jsonb response
-    text error_message
-    int attempt_number
-    timestamp attempted_at
-  }
-
-  StyleProfile {
-    uuid id PK
-    uuid user_id FK
-    vector voice_embedding
-    jsonb style_params
-    float learning_rate
-    int total_ratings
-    int total_edits
-    timestamp updated_at
-  }
-
-  StyleSignal {
-    uuid id PK
-    uuid profile_id FK
-    uuid source_draft_id
-    string signal_type
-    jsonb signal_data
-    float weight
-    timestamp recorded_at
-  }
-
-  Rating {
-    uuid id PK
-    uuid user_id FK
-    uuid draft_id FK
-    int score
-    text comment
-    jsonb dimension_scores
-    timestamp created_at
-  }
-
-  ContentBrief {
-    uuid id PK
-    uuid user_id FK
-    date brief_date
-    jsonb context_summary
-    timestamp generated_at
-    timestamp viewed_at
-  }
-
-  BriefIdea {
-    uuid id PK
-    uuid brief_id FK
-    string title
-    text description
-    string category
-    float relevance_score
-    float novelty_score
-    uuid source_knowledge_item_id FK
-  }
-
-  NotificationLog {
-    uuid id PK
-    uuid user_id FK
-    string notification_type
-    string channel
-    jsonb payload
-    boolean delivered
-    timestamp sent_at
-  }
+  User->>Web: "Connect LinkedIn account"
+  Web->>FirebaseAuth: signInWithPopup(linkedinProvider)
+  FirebaseAuth-->>Web: {credential: LinkedInAccessToken}
+  Web->>Web: Call Cloud Function: connectLinkedIn(token)
+  Note over Web,GitHub: LinkedIn access token stored encrypted in Firestore
 ```
 
-### 10.2 Migration Strategy
+### 9.2 Security Layers
+
+| Layer | Mechanism |
+|-------|-----------|
+| **Auth** | Firebase Auth (Google, GitHub, email/password). 50K MAU free. |
+| **API Auth** | Cloud Functions `onCall` automatically verifies Firebase ID tokens. `context.auth` is populated for every call. |
+| **Data Access** | Firestore Security Rules enforce per-user access. "Read own drafts only" is declarative, not code. |
+| **LinkedIn Tokens** | Encrypted at rest in Firestore using Cloud KMS via Cloud Functions. Decrypted only in memory during publish tasks. |
+| **API Keys (Groq, Mistral)** | Stored in Firebase Secret Manager. `defineSecret()` injects into function environment. Never logged. |
+| **CORS** | Cloud Functions `onCall` enforces CORS implicitly. No manual CORS headers. |
+| **Rate Limiting** | Implemented per-user at the function level. Warmup cache in Firestore (last request timestamp + count). |
+| **Input Validation** | All function inputs validated with Zod schemas. Malformed input → rejected before processing. |
+
+### 9.3 Firestore Security Rules
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User documents: owner only
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Trending topics: readable by all authenticated users
+    match /trendingTopics/{topic} {
+      allow read: if request.auth != null;
+      allow write: if false; // Admin only via Cloud Functions
+    }
+
+    // Briefs: owner only
+    match /users/{userId}/briefs/{briefId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false; // Write-only via Cloud Functions
+    }
+  }
+}
+```
+
+---
+
+## 10. Caching Strategy
+
+| Data | Cache Strategy | TTL | Implementation |
+|------|---------------|-----|----------------|
+| **User Profile** | Firestore SDK client cache | Session | Firebase SDK `{source: 'cache'}` for reads |
+| **Style Profile** | Firestore SDK client cache | 5 minutes | Explicit read with `{source: 'server'}` on generation |
+| **Content Brief** | Firestore document | 6 hours | Regenerated by scheduled function, stored as document |
+| **Trending Topics** | Firestore document | 3 hours | Separate collection, updated by scheduled sync |
+| **GitHub Activity** | Firestore document | 6 hours | Stored per-user, timestamp-tracked |
+| **Draft Preview** | None | — | Generated on demand, user expects latest |
+| **Analytics Dashboard** | Firestore aggregated document | 12 hours | Pre-computed by scheduled function |
+| **LLM Responses** | None (MVP) | — | Content is unique per user+context. Cache considered for identical prompts in Phase 2. |
+
+No separate Redis or CDN cache layer is needed for MVP. Firestore's server-side caching and the client SDK's persistence layer provide adequate read performance. If analytics dashboard queries become slow, pre-compute aggregations by a scheduled function into a dedicated cache document.
+
+---
+
+## 11. Deployment Architecture
+
+### 11.1 Deployment Diagram
+
+```mermaid
+flowchart TB
+  subgraph VERCEL["Vercel Platform"]
+    direction LR
+    NEXT_APP["Next.js App
+              · Automatic SSL
+              · Global CDN
+              · Preview deployments
+              · Environment variables"]
+  end
+
+  subgraph FIREBASE["Firebase Project"]
+    direction TB
+    FA["Firebase Auth"]
+    FS_DB["Firestore Database"]
+    CF["Cloud Functions
+        · Node.js 20
+        · 7 function groups
+        · Max: 256MB per function
+        · Timeout: 60s (HTTP), 540s (background)"]
+    CS["Cloud Storage
+        · Default bucket
+        · Security rules
+        · 30-day file retention"]
+    CT["Cloud Tasks
+        · Pub/sub queues
+        · Retry configs
+        · Max attempts: 5"]
+
+    FA --- FS_DB
+    FA --- CF
+    CF --- FS_DB
+    CF --- CS
+    CF --- CT
+  end
+
+  subgraph EXTERNAL["External Services"]
+    GROQ["Groq API
+          · Llama 3.3 70B
+          · Qwen3 32B
+          · Llama 4 Scout 17B"]
+    MISTRAL["Mistral AI
+             · mistral-embed"]
+    SUPABASE["Supabase
+              · pgvector
+              · Free tier database"]
+    GITHUB_API["GitHub API"]
+    LI_API["LinkedIn API"]
+  end
+
+  VERCEL -->|"Firebase SDK"| FIREBASE
+  CF -->|"GROQ_API_KEY"| GROQ
+  CF -->|"MISTRAL_API_KEY"| MISTRAL
+  CF -->|"SUPABASE_SERVICE_KEY"| SUPABASE
+  CF -->|"GitHub App"| GITHUB_API
+  CF -->|"LinkedIn App"| LI_API
+```
+
+### 11.2 CI/CD Pipeline
 
 ```mermaid
 flowchart LR
-  subgraph PHASE1["MVP (Q4 2026)"]
-    V1["Version 1
-        · Core tables only
-        · No vector index
-        · No analytics
-        · Single writer DB"]
-  end
-
-  subgraph PHASE2["Scale (Q1 2027)"]
-    V2["Version 2
-        · Migrate SQLite → PostgreSQL
-        · Dedicated vector store (Pinecone / Weaviate)
-        · Read replicas
-        · Partitioned content
-        · Analytics schema"]
-  end
-
-  subgraph PHASE3["Growth (Q2-Q3 2027)"]
-    V3["Version 3
-        · Sharded user data
-        · Time-partitioned logs
-        · Materialized views
-        · Connection pooling
-        · Logical replication"]
-  end
-
-  V1 --> V2
-  V2 --> V3
-```
-
-### Decision: Single database, not microservices-per-database
-
-For MVP, all services share a single SQLite database (`./data/brandos.db`) with schema-level separation (tables prefixed by domain: `auth_`, `content_`, `kb_`, `analytics_`). This avoids the operational complexity of a database server while maintaining logical separation. ChromaDB handles all vector data in a separate local store (`./data/chromadb/`). Migration path: when user count exceeds 500 or any table exceeds 1M rows, migrate SQLite to PostgreSQL — schema separation then maps to PostgreSQL schemas naturally.
-
----
-
-## 11. API Flow
-
-### 11.1 API Surface Map
-
-```mermaid
-flowchart TB
-  subgraph API["API Surface (v1)"]
-    AUTH_API["Auth API
-              POST /auth/register
-              POST /auth/login
-              POST /auth/oauth/{provider}
-              POST /auth/refresh
-              GET  /auth/me"]
-
-    USER_API["User API
-              GET    /profiles/me
-              PATCH  /profiles/me
-              GET    /profiles/me/preferences
-              PATCH  /profiles/me/preferences
-              GET    /profiles/me/expertise
-              POST   /profiles/me/expertise"]
-
-    CONNECT_API["Connections API
-                 POST   /connections/github
-                 POST   /connections/linkedin
-                 DELETE /connections/github
-                 DELETE /connections/linkedin
-                 GET    /connections/status"]
-
-    KB_API["Knowledge Base API
-            GET      /kb/items
-            POST     /kb/items
-            GET      /kb/items/{id}
-            PUT      /kb/items/{id}
-            DELETE   /kb/items/{id}
-            GET      /kb/items/{id}/related
-            POST     /kb/search
-            GET      /kb/tags"]
-
-    CONTENT_API["Content API
-                 GET    /content/briefs/today
-                 POST   /content/ideas/generate
-                 POST   /content/drafts
-                 GET    /content/drafts
-                 GET    /content/drafts/{id}
-                 PUT    /content/drafts/{id}
-                 POST   /content/drafts/{id}/regenerate
-                 POST   /content/drafts/{id}/rate
-                 POST   /content/drafts/{id}/schedule
-                 GET    /content/drafts/{id}/revisions
-                 GET    /content/history"]
-
-    PUBLISH_API["Publish API
-                 POST   /publish/now
-                 POST   /publish/schedule
-                 GET    /publish/schedule
-                 DELETE /publish/schedule/{id}
-                 GET    /publish/history"]
-
-    ANALYTICS_API["Analytics API
-                   GET /analytics/overview
-                   GET /analytics/posts
-                   GET /analytics/engagement
-                   GET /analytics/audience
-                   GET /analytics/trends"]
-
-    ADMIN_API["Admin API (internal)
-               GET  /admin/stats
-               GET  /admin/users
-               GET  /admin/user/{id}
-               POST /admin/force-sync/{user_id}"]
-  end
-```
-
-### 11.2 API Contract Pattern
-
-Every endpoint follows a consistent contract pattern:
-
-```mermaid
-flowchart LR
-  REQ["Request
-       · HTTP Method
-       · Path + params
-       · Auth header (JWT)
-       · JSON body (if POST/PUT)
-       · Idempotency-Key (mutations)"]
-
-  VALIDATE["Validation
-            · Pydantic schema
-            · Type check
-            · Constraint check
-            · Auth scope check"]
-
-  HANDLE["Handler
-          · Extract user context
-          · Rate limit check
-          · Route to service
-          · Transform response"]
-
-  RESP["Response
-        · 200: Success
-        · 201: Created
-        · 400: Validation error
-        · 401: Unauthenticated
-        · 403: Forbidden
-        · 404: Not found
-        · 409: Conflict
-        · 429: Rate limited
-        · 500: Internal error"]
-
-  REQ --> VALIDATE --> HANDLE --> RESP
-
-  RESP --> JSON["JSON envelope
-                 {
-                   \"data\": {...},
-                   \"meta\": {
-                     \"request_id\": \"req_...\",
-                     \"timestamp\": \"...\"
-                   }
-                 }"]
-
-  RESP --> ERR["Error envelope
-                {
-                  \"error\": {
-                    \"code\": \"VALIDATION_ERROR\",
-                    \"message\": \"...\",
-                    \"details\": {...}
-                  },
-                  \"meta\": {...}
-                }"]
-```
-
-### Decision: REST over GraphQL for MVP
-
-The PRD listed GraphQL in the architecture overview, but REST was chosen for MVP after analysis:
-1. **Cacheability** — REST responses are trivially cached at the CDN and Redis layers. GraphQL requires more complex cache normalization.
-2. **Observability** — REST endpoints are naturally grouped by resource, making it easier to track error rates and latencies per resource.
-3. **Client complexity** — The BrandOS frontend is a single-page app with straightforward data fetching patterns. GraphQL's over-fetching benefits don't justify the client complexity.
-
-GraphQL will be re-evaluated when we open a public API (Phase 4).
-
----
-
-## 12. Future Extension Points
-
-The architecture is designed with explicit extension points for each planned growth vector.
-
-```mermaid
-flowchart TB
-  subgraph PLATFORM["Platform Extension Points"]
-    DIRECTION PLATFORM_EXT
-
-    ADAPTER["Platform Adapter Interface
-             · format_post(draft) → platform_specific
-             · publish(post, tokens) → result
-             · fetch_analytics(tokens) → metrics
-             · validate_connection(tokens) → boolean"]
-
-    EXISTING_ADAPTERS["MVP Adapters
-                       · LinkedInAdapter
-                       · ManualExportAdapter"]
-
-    FUTURE_ADAPTERS["Future Adapters
-                     · TwitterAdapter (P2)
-                     · MediumAdapter (P3)
-                     · DevtoAdapter (P3)
-                     · HashnodeAdapter (P3)
-                     · NewsletterAdapter (P3)
-                     · BlogCMSAdapter (P4)"]
-  end
-
-  subgraph DATA["Data Source Extension Points"]
-    DIRECTION DATA_EXT
-
-    SOURCE["Data Source Interface
-            · fetch(user_id) → signals
-            · webhook_handler(payload) → update
-            · rate_limit_info() → limits"]
-
-    EXISTING_SOURCES["MVP Sources
-                      · GitHubSource
-                      · ManualSource
-                      · LinkedInSource"]
-
-    FUTURE_SOURCES["Future Sources
-                    · StackOverflowSource
-                    · TwitterSource
-                    · GoogleScholarSource
-                    · ArXivSource
-                    · ObsidianSource
-                    · NotionSource"]
-  end
-
-  subgraph LLM["LLM Provider Extension Points"]
-    DIRECTION LLM_EXT
-
-    PROVIDER["LLM Provider Interface
-              · complete(prompt, config) → response
-              · embed(input) → vector
-              · grade(output, criteria) → score
-              · cost_estimate(task) → tokens"]
-
-    EXISTING_PROVIDERS["MVP Providers
-                        · AnthropicClaudeProvider
-                        · OpenAIGPTProvider"]
-
-    FUTURE_PROVIDERS["Future Providers
-                      · GoogleGeminiProvider
-                      · MetaLlamaProvider
-                      · MistralProvider
-                      · SelfHostedProvider"]
-  end
-
-  subgraph STYLE["Style Input Extension Points"]
-    DIRECTION STYLE_EXT
-
-    SIGNAL["Style Signal Interface
-            · extract(draft, edit) → signal
-            · confidence(signal) → float
-            · merge(existing, signal) → updated"]
-
-    FUTURE_SIGNALS["Future Signals
-                    · VoiceCloneSignal (P4)
-                    · MultiLangSignal (P4)
-                    · ToneProfileSignal
-                    · AudienceAdaptSignal"]
-  end
-```
-
-### Extension Point: Platform Adapter Pattern
-
-```python
-# Pseudocode showing the adapter interface
-class PlatformAdapter(ABC):
-    """Every platform adapter implements this interface."""
-
-    @abstractmethod
-    def format_post(self, draft: ContentDraft) -> PlatformPost: ...
-
-    @abstractmethod
-    def publish(self, post: PlatformPost, tokens: PlatformTokens) -> PublishResult: ...
-
-    @abstractmethod
-    def fetch_analytics(self, tokens: PlatformTokens) -> PlatformAnalytics: ...
-
-    @abstractmethod
-    def validate_connection(self, tokens: PlatformTokens) -> ConnectionStatus: ...
-```
-
-Adding X/Twitter support in Phase 2 means writing one class (`TwitterAdapter`) that implements four methods. The scheduler, the publishing queue, and the analytics pipeline all work unchanged because they depend on the interface, not the implementation.
-
----
-
-## 13. Scalability
-
-### 13.1 Scaling Strategy by Component
-
-```mermaid
-flowchart TB
-  subgraph WEB["Web Tier"]
-    NEXT_H["Next.js Horizontal
-            · Stateless
-            · Scale by traffic
-            · CDN cacheable"]
-    NEXT_S["Strategy
-            · Vercel auto-scale
-            · 1 instance → N
-            · Zero config"]
-  end
-
-  subgraph API["API Tier"]
-    FAST_H["FastAPI Horizontal
-            · Stateless workers
-            · Gunicorn + Uvicorn
-            · Scale by request rate"]
-    FAST_S["Strategy
-            · Docker + K8s/Hobby
-            · HPA by CPU + RPS
-            · 2 → 10 pods"]
-  end
-
-  subgraph WORKER["Worker Tier"]
-    WORKER_H["Async Workers
-              · Arq worker pool
-              · Scale by queue depth
-              · Per-task concurrency"]
-    WORKER_S["Strategy
-              · Queue depth > 100 → +1 worker
-              · Max 10 workers per queue
-              · Separate queues per priority"]
-  end
-
-  subgraph DATA["Data Tier"]
-    PG_H["PostgreSQL (Phase 2+)
-          · Read replicas (analytics)
-          · Connection pooling (PgBouncer)
-          · Vertical scale first"]
-    PG_S["Strategy
-          · MVP: SQLite (single file, WAL mode)
-          · Phase 2: PostgreSQL, 1 writer + 1 reader
-          · Phase 3: +2 readers, shard by user_id"]
-    REDIS_H["Redis
-             · Cluster mode
-             · Persistence: RDB + AOF
-             · Maxmemory policy: allkeys-lru"]
-    REDIS_S["Strategy
-             · MVP: 1 node
-             · Phase 2: Sentinel HA
-             · Phase 3: Cluster"]
-  end
-
-  NEXT_H --> NEXT_S
-  FAST_H --> FAST_S
-  WORKER_H --> WORKER_S
-  PG_H --> PG_S
-  REDIS_H --> REDIS_S
-```
-
-### 13.2 Bottleneck Analysis
-
-| Bottleneck | MVP Limit | Scaling Trigger | Solution |
-|-----------|-----------|----------------|----------|
-| **LLM API Rate Limit** | ~500 RPM per key | > 500 requests/minute | Round-robin across API keys. Cache common prompts. Queue non-urgent generation. |
-| **SQLite Write TPS** | ~500 writes/sec | > 300 writes/sec | WAL mode + batch writes. Phase 2: migrate to PostgreSQL for 1,000+ writes/sec. |
-| **GitHub API Rate Limit** | 5,000 req/hr per token | > 4,000 req/hr | Token pool across users. Reduce poll frequency. Cache aggressively. |
-| **LinkedIn API Rate Limit** | 100,000 calls/day per app | > 80,000 calls/day | Batch analytics fetches. Reduce poll frequency to daily. |
-| **Redis Memory** | < 1GB per instance | > 750MB used | Cluster mode. More aggressive TTL. Evict less-accessed keys. |
-| **Async Queue** | ~1,000 jobs/min per Arq worker | > 800 jobs/min | Add workers. Priority queuing. Job deduplication. |
-
-### Decision: Vertical scale first, horizontal second
-
-**MVP (SQLite)**: SQLite with WAL mode provides sufficient concurrency for single-tenant and small-team deployments. The `busy_timeout` pragma prevents lock contention during brief concurrent writes. For 500 users × 10K items = 5M rows, a single SQLite file performs well with proper indexing and FTS5.
-
-**Phase 2 (PostgreSQL)**: When migrating to PostgreSQL, scale vertically first (bigger instance) before adding read replicas. Read replicas only become necessary when analytics queries (heavy aggregations) start competing with write traffic. This avoids premature distributed-system complexity.
-
----
-
-## 14. Caching Strategy
-
-### 14.1 Cache Layers
-
-```mermaid
-flowchart TB
-  subgraph L1["L1: Browser Cache"]
-    L1_DATA["Static assets
-             · JS bundles
-             · CSS files
-             · Images
-             Cache-Control: immutable"]
-    L1_POL["Policy
-            · CDN edge cache
-            · Service worker (PWA)
-            · No dynamic data"]
-  end
-
-  subgraph L2["L2: CDN / Edge Cache"]
-    L2_DATA["Public responses
-             · Landing pages
-             · Public profiles
-             · Shared content
-             Cache-Control: public, s-maxage=300"]
-    L2_POL["Policy
-            · Cloudflare / Vercel Edge
-            · Surrogate-Key based purge
-            · Per-URL invalidation"]
-  end
-
-  subgraph L3["L3: Application Cache (Redis)"]
-    L3_DATA["Hot data
-             · User profiles (TTL: 5min)
-             · Today's brief (TTL: 1hr)
-             · Content ideas (TTL: 30min)
-             · Trending topics (TTL: 4hr)
-             · Style profiles (TTL: 1hr)
-             · Analytics aggregates (TTL: 6hr)"]
-    L3_POL["Policy
-            · Read-through pattern
-            · Write-through on mutations
-            · LRU eviction
-            · Prefix-based invalidation"]
-  end
-
-  subgraph L4["L4: Database Cache"]
-    L4_DATA["SQLite (MVP) → PostgreSQL (Phase 2)
-             · SQLite: page cache (PRAGMA cache_size)
-             · PostgreSQL: shared buffers, 25% of RAM
-             · Index-only scans
-             · Materialized views (analytics, Phase 2)"]
-  end
-
-  L1 --> L2
-  L2 --> L3
-  L3 --> L4
-```
-
-### 14.2 Cache Invalidation Strategy
-
-| Cache Key | Write Trigger | Invalidation | Stale-while-revalidate |
-|-----------|--------------|--------------|----------------------|
-| `user:{id}:profile` | Profile update | Immediate (`DEL`) | 60s |
-| `user:{id}:brief:{date}` | New brief generated | Immediate (`DEL`) | 300s |
-| `user:{id}:style` | Rating or edit | Delayed (30s debounce) | 600s |
-| `global:trending` | Trend poll | TTL expiration | N/A |
-| `user:{id}:analytics:overview` | Daily analytics poll | TTL expiration | 3600s |
-| `user:{id}:kb:recent` | KB item added | Immediate (`DEL`) | 120s |
-
-### Decision: Write-through for user mutations, TTL for everything else
-
-When a user updates their profile or saves a knowledge item, the cache is invalidated immediately (write-through). When analytics aggregates or trending topics are cached, they simply expire after a TTL and are refreshed on the next read. This avoids the complexity of write-behind or eventual consistency issues for data that doesn't need real-time freshness.
-
----
-
-## 15. Security Architecture
-
-```mermaid
-flowchart TB
-  subgraph EDGE_SEC["Edge Security"]
-    DDOS["DDoS Protection
-          · Cloudflare / AWS Shield
-          · Rate limiting per IP
-          · WAF rules"]
-    TLS["TLS Termination
-         · TLS 1.3 only
-         · HSTS preload
-         · Certificate automation"]
-  end
-
-  subgraph AUTH_SEC["Authentication & Authorization"]
-    OAUTH["OAuth 2.0
-           · GitHub (data source)
-           · LinkedIn (publishing)
-           · Google (identity)
-           · PKCE flow for SPA"]
-    JWT["JWT Management
-         · Access token: 15min TTL
-         · Refresh token: 7-day TTL (rotating)
-         · RS256 signing
-         · Token binding"]
-    MFA["MFA
-         · TOTP (authenticator app)
-         · Optional on login
-         · Enforced for admin"]
-  end
-
-  subgraph API_SEC["API Security"]
-    RATE["Rate Limiting
-          · Per-user: 100 req/min
-          · Per-IP: 30 req/min (unauthenticated)
-          · LLM endpoints: 5 req/min/user
-          · Publish endpoints: 10 req/min/user"]
-    VALIDATE["Input Validation
-              · All inputs: Pydantic
-              · SQL injection: ORM (no raw queries)
-              · XSS: Output encoding
-              · File upload: size + type validation"]
-    IDEMPOTENCY["Idempotency
-                 · Idempotency-Key header required for mutations
-                 · Key stored in Redis (TTL: 24hr)
-                 · Same key + same body → cached response
-                 · Different body → 409 Conflict"]
-  end
-
-  subgraph DATA_SEC["Data Security"]
-    ENCRYPT["Encryption
-             · At rest: AES-256 (RDS encryption)
-             · In transit: TLS 1.3
-             · Platform tokens: AES-256-GCM envelope
-             · Envelope key: KMS"]
-    TOKEN_STORE["Token Storage
-                 · OAuth tokens encrypted at rest
-                 · Never logged
-                 · Auto-refresh via refresh tokens
-                 · Revocation on disconnect"]
-    PII["PII Handling
-         · Minimal PII collected
-         · GDPR right to deletion
-         · Data export available
-         · No ML training without consent"]
-  end
-
-  subgraph LLM_SEC["LLM Security"]
-    PROMPT_INJECTION["Prompt Protection
-                      · User content isolated from system prompts
-                      · Input sanitization
-                      · Output validation
-                      · No raw user input in system context"]
-    RATE_LLM["Cost Control
-              · Per-user daily LLM budget
-              · Hard cap on generation attempts
-              · Anomaly detection (sudden spike)"]
-    DATA_ISOLATION["Data Isolation
-                    · No cross-user context leakage
-                    · Clear session per generation
-                    · No persistent model training"]
-  end
-
-  EDGE_SEC --> AUTH_SEC
-  AUTH_SEC --> API_SEC
-  API_SEC --> DATA_SEC
-  API_SEC --> LLM_SEC
-```
-
-### Decision: OAuth token encryption with envelope encryption
-
-Platform tokens (LinkedIn, GitHub) are the most sensitive credentials in the system. They are encrypted using AES-256-GCM with a key-encryption-key (KEK) stored in AWS KMS or equivalent. The data key is generated per-token and wrapped by the KEK. This means:
-1. The application never has raw cryptographic keys.
-2. Token decryption is audited in KMS logs.
-3. Key rotation doesn't require re-encrypting all tokens.
-
----
-
-## 16. Deployment Architecture
-
-### 16.1 Infrastructure Layout
-
-```mermaid
-flowchart TB
-  subgraph PROD["Production Environment"]
-    DNS["DNS: Cloudflare / Route53"]
-    CDN["CDN: Cloudflare / Vercel Edge
-         · Static assets
-         · Public pages
-         · API caching"]
-    WAF["WAF: Cloudflare
-         · DDoS protection
-         · Rate limiting
-         · Bot management"]
-
-    subgraph COMPUTE["Compute Plane (Vercel + K8s / Hobby)"]
-      WEB["Next.js App
-           · Vercel serverless
-           · Auto-scaling
-           · Edge functions"]
-      API["FastAPI Backend
-           · 2-6 pods (HPA)
-           · Gunicorn + Uvicorn
-           · 4 workers per pod"]
-      WORKER["Async Workers
-              · Arq worker pods
-              · 2-4 pods
-              · Auto-scale by queue depth"]
-      CRON["Scheduled Jobs
-            · Brief generation
-            · GitHub sync
-            · LinkedIn analytics"
-            · Trend scraping]
-    end
-
-    subgraph DATA_PLANE["Data Plane (RDS / ElastiCache / S3)"]
-      PG_Master[(PostgreSQL Primary (Phase 2+)
-                  · Writer instance
-                  · db.r6g.large
-                  · 100GB gp3 storage)]
-      PG_Replica[(PostgreSQL Read Replica (Phase 2+)
-                   · Reader instance
-                   · Analytics queries
-                   · Brief generation)]
-      REDIS_CLUSTER[(Redis
-                      · Cache + Queue
-                      · 1 node MVP
-                      · 2GB memory)]
-      S3_STORE[(S3 / R2
-                 · Draft history
-                 · User uploads
-                 · Generated assets)]
-    end
-
-    subgraph EXTERNAL["External Services"]
-      LLM_PROV["LLM API
-                · Anthropic
-                · OpenAI"]
-      GH_API["GitHub API"]
-      LI_API["LinkedIn API"]
-      EMAIL_SVC["SendGrid / Resend"]
-      ANALYTICS["Amplitude / PostHog"]
-      MONITORING["Datadog / Grafana"]
-    end
-  end
-
-  subgraph STAGING["Staging Environment"]
-    STG_WEB["Next.js (Vercel Preview)"]
-    STG_API["FastAPI (1 pod)"]
-    STG_PG[(SQLite (staging)
-            · Same schema as prod
-            · Anonymized data)]
-    STG_REDIS[(Redis
-               · 1GB)]
-  end
-
-  subgraph DEV["Development"]
-    DEV_ENV["Local
-             · Docker Compose
-             · SQLite (embedded) + ChromaDB (local)
-             · Redis
-             · MinIO (S3 mock)
-             · ngrok for webhooks"]
-  end
-
-  DNS --> CDN
-  CDN --> WAF
-  WAF --> WEB
-  WEB --> API
-  API --> PG_Master
-  API --> REDIS_CLUSTER
-  API --> S3_STORE
-  API --> WORKER
-  WORKER --> REDIS_CLUSTER
-  API --> PG_Replica
-  CRON --> API
-  CRON --> PG_Master
-  CRON --> WORKER
-
-  API --> LLM_PROV
-  API --> GH_API
-  API --> LI_API
-  WORKER --> LLM_PROV
-  WORKER --> LI_API
-  WORKER --> GH_API
-  CRON --> GH_API
-  CRON --> LI_API
-
-  WEB --> ANALYTICS
-  API --> EMAIL_SVC
-  API --> MONITORING
-  WORKER --> MONITORING
-```
-
-### 16.2 CI/CD Pipeline
-
-```mermaid
-flowchart LR
-  subgraph CI["Continuous Integration"]
-    GIT["git push → branch"]
-    LINT["Lint
-          · ruff (Python)
-          · eslint (TS)
-          · mypy type check"]
+  GIT["git push"] --> GHA["GitHub Actions"]
+  
+  subgraph GHA["GitHub Actions Workflow"]
+    direction TB
+    LINT["Lint + Type Check
+          · eslint
+          · tsc --noEmit"]
     TEST["Test
-          · pytest (Python)
-          · vitest (JS)
-          · Integration tests"]
+          · vitest (unit)
+          · firebase emulators (integration)"]
     BUILD["Build
-           · Docker image
-           · Next.js build
-           · Static analysis"]
+           · npm run build
+           · next build (frontend)
+           · tsc (functions)"]
   end
 
-  subgraph CD["Continuous Deployment"]
-    STAGING["Deploy to Staging
-             · Vercel Preview (web)
-             · Docker deploy (API)
-             · Run migration
-             · Smoke tests"]
-    E2E["E2E Tests
-         · Playwright
-         · API contract tests
-         · Performance benchmarks"]
-    APPROVE["Approval Gate
-             · Manual approval
-             · PR review done
-             · Staging tests pass"]
-    PROD_DEPLOY["Deploy to Production
-                 · Blue-green API deploy
-                 · Vercel production (web)
-                 · Sequential migration
-                 · Health check"]
+  GHA -->|"Frontend"| VERCELL["Vercel Deploy
+                                · Production branch
+                                · Preview per PR"]
+  GHA -->|"Functions"| FIREBASE_DEPLOY["Firebase Deploy
+                                         · firebase deploy --only functions
+                                         · firebase deploy --only firestore:rules
+                                         · firebase deploy --only firestore:indexes"]
+
+  subgraph ENVIRONMENTS["Deployment Environments"]
+    PROD["Production
+          · main branch
+          · Vercel production
+          · Firebase production"]
+    PREVIEW["Preview
+             · PR branches
+             · Vercel preview
+             · Firebase staging project"]
   end
 
-  GIT --> LINT
-  LINT --> TEST
-  TEST --> BUILD
-  BUILD --> STAGING
-  STAGING --> E2E
-  E2E --> APPROVE
-  APPROVE --> PROD_DEPLOY
+  VERCELL --> PROD
+  VERCELL --> PREVIEW
+  FIREBASE_DEPLOY --> PROD
 ```
 
 ---
 
-## 17. Monitoring & Observability
+## 12. Scalability Path
 
-### 17.1 Observability Stack
+| Metric | MVP Target (500 users) | Phase 2 (5K users) | Phase 3 (50K users) |
+|--------|----------------------|--------------------|---------------------|
+| **Auth** | Firebase Auth (50K MAU free) | Same | Same |
+| **Firestore** | Native mode, single region | Same | Nam5 → multi-region |
+| **Cloud Functions** | 2M invocations/mo (free) | ~10M/mo (~$0.40/M) | ~100M/mo (~$0.40/M) |
+| **Cloud Storage** | 5GB (free on Blaze) | ~10GB ($0.026/GB) | ~50GB ($0.026/GB) |
+| **Groq API** | Free tier (14.4K RPD) | Paid tier ($0.10-0.30/M tokens) | Reserved capacity |
+| **Supabase pgvector** | Free tier (500MB) | Pro tier ($25/mo, 8GB) | Team tier ($599/mo) |
+| **LinkedIn API** | Free tier | Same | Same |
 
-```mermaid
-flowchart TB
-  subgraph LOGS["Log Aggregation"]
-    APP_LOGS["Application Logs
-              · Structured JSON logging
-              · request_id on every log
-              · Log level: INFO (prod)
-              · Log level: DEBUG (staging)"]
-    LLM_LOGS["LLM Interaction Logs
-              · Prompt (truncated)
-              · Response (truncated)
-              · Token count
-              · Latency
-              · Model used
-              · Cost estimate"]
-    AUDIT_LOGS["Audit Logs
-                · User actions (publish, delete, export)
-                · Token refresh
-                · Permission changes
-                · Immutable append-only"]
-  end
+### 12.1 Bottleneck Predictions
 
-  subgraph METRICS["Metrics (Prometheus + Datadog/Grafana)"]
-    APP_METRICS["Application Metrics
-                 · Request rate (by endpoint)
-                 · Response latency (p50, p95, p99)
-                 · Error rate (by status code)
-                 · Active users"]
-    BUS_METRICS["Business Metrics
-                 · Drafts generated
-                 · Posts published
-                 · Briefs delivered
-                 · Style ratings collected
-                 · Knowledge items saved"]
-    INFRA_METRICS["Infrastructure Metrics
-                   · CPU / Memory / Disk
-                   · Connection pool usage
-                   · Queue depth
-                   · Cache hit ratio"]
-    LLM_METRICS["LLM Metrics
-                 · Tokens per request
-                 · Cost per user
-                 · Latency per model
-                 · Retry rate"]
-  end
-
-  subgraph TRACES["Distributed Tracing"]
-    TRACE["Trace Context
-           · OpenTelemetry
-           · request_id propagated
-           · Span per service call
-           · Span per pipeline stage"]
-  end
-
-  subgraph ALERTS["Alerting"]
-    PAGER["P0 Alerts
-           · Service down > 2min
-           · P95 latency > 5s
-           · Error rate > 5%
-           · Queue backlog > 1000"]
-    WARN["P1 Alerts
-          · P95 latency > 2s
-          · Error rate > 1%
-          · LLM budget 80% used
-          · Cache hit ratio < 50%"]
-    INFO["P2 Alerts
-          · Cost anomaly
-          · User-reported issues
-          · API rate limit approaching
-          · Migration pending"]
-  end
-
-  subgraph DASHBOARDS["Dashboards (Grafana)"]
-    OVERVIEW["System Overview
-              · RPS, latency, errors
-              · Active users
-              · Queue depth
-              · Cache hit ratio"]
-    BUSINESS["Business Health
-              · Drafts created/day
-              · Posts published/day
-              · Approval rate
-              · Style learning velocity"]
-    LLM_DASH["LLM Cost & Usage
-              · Cost per user per day
-              · Token usage by model
-              · Retry/failure rate
-              · Prompt size distribution"]
-    USER_SCOPE["Per-User Debug
-                · Filter by user_id
-                · Recent draft generations
-                · LLM cost per user
-                · Error timeline"]
-  end
-
-  APP_LOGS --> LOGS
-  LLM_LOGS --> LOGS
-  AUDIT_LOGS --> LOGS
-  APP_METRICS --> METRICS
-  BUS_METRICS --> METRICS
-  INFRA_METRICS --> METRICS
-  LLM_METRICS --> METRICS
-  TRACE --> TRACES
-
-  METRICS --> ALERTS
-  LOGS --> DASHBOARDS
-  METRICS --> DASHBOARDS
-  TRACES --> DASHBOARDS
-```
-
-### 17.2 Key Dashboards
-
-| Dashboard | Purpose | Key Panels |
-|-----------|---------|------------|
-| **System Overview** | At-a-glance health | RPS, error rate, p95 latency, active users, queue depth |
-| **Content Health** | Content pipeline status | Drafts generated (trend), approval rate, generation duration, quality score distribution |
-| **LLM Cost** | Cost governance | Cost per user/day, cost per generation, token usage by model, remaining budget |
-| **User Engagement** | Product metrics | DAU/WAU/MAU, brief view rate, draft approval rate, publish rate, NPS trend |
-| **Per-User Debug** | Support triage | User's recent drafts, generation errors, LLM cost, platform connection status |
-
-### Decision: request_id propagation everywhere
-
-Every request gets a unique `request_id` at the edge that propagates through BFF, API Gateway, service calls, LLM calls, and database queries. This single identifier ties together logs, traces, and metrics for any user action. It is the primary debugging tool for the content generation pipeline, where a single user action may trigger calls across 5+ services and an LLM provider.
+| Bottleneck | When It Hits | Mitigation |
+|------------|-------------|------------|
+| **Firestore write limits** | ~500 concurrent users writing simultaneously | Distribute writes across subcollections. Use batched writes. Reduce revision writes to a scheduled compaction. |
+| **Groq rate limits** | ~1,500 daily active users | Upgrade to Groq paid tier ($0.15/M tokens for Llama 3.3 70B). Or add Mistral AI Large as secondary generator. |
+| **Cloud Function cold starts** | Any scale | Use minimum instances (1-2) for latency-sensitive functions (content generation, brief retrieval). 10 instances free, then $0.000005/instance/s. |
+| **pgvector performance** | >100K vectors per user, >100 users | Add IVFFlat index (faster index build, higher recall). Partition by user_id. Upgrade Supabase. |
 
 ---
 
-## 18. Failure Handling
+## 13. Cost Analysis
 
-### 18.1 Failure Scenarios and Responses
+### 13.1 Monthly Operating Cost (MVP, 500 users)
 
-```mermaid
-flowchart TB
-  subgraph FAILURES["Failure Scenarios"]
-    LLM_DOWN["LLM Provider Down
-              · HTTP 503 from provider
-              · Timeout > 30s
-              · Rate limit exceeded"]
-    DB_DOWN["Database Down
-             · Connection refused
-             · Replication lag > 10s
-             · Deadlock"]
-    PLATFORM_DOWN["Platform API Down
-                   · LinkedIn API 503
-                   · GitHub API rate limit
-                   · OAuth token expired"]
-    WORKER_DOWN["Worker Process Down
-                 · OOM
-                 · Unhandled exception
-                 · Crash loop"]
-  end
+| Service | Component | Estimated Cost |
+|---------|-----------|---------------|
+| **Firebase** | Auth (50K MAU) | $0 (free tier) |
+| **Firebase** | Firestore (1GB storage, 50K reads/day, 20K writes/day) | $0 (free tier) |
+| **Firebase** | Cloud Functions (2M invocations/month) | $0 (free on Blaze) |
+| **Firebase** | Cloud Storage (5GB) | $0 (free on Blaze) |
+| **Firebase** | Cloud Tasks | $0 (free tier) |
+| **Vercel** | Next.js hosting (Pro plan) | $20/mo |
+| **Groq API** | 165K requests/month average | $0 (free tier) |
+| **Mistral AI** | Embeddings (50M tokens/month) | $0 (free tier, 1B/mo cap) |
+| **Supabase** | pgvector (500MB) | $0 (free tier) |
+| **LinkedIn API** | OAuth + UGC Posts | $0 |
+| **GitHub API** | Octokit (5K requests/hour) | $0 |
+| **Custom Domain** | Vercel custom domain | $0 (Vercel Pro includes custom domain) |
+| **Total** | | **~$20/mo** |
 
-  subgraph RESPONSES["Failure Responses"]
-    LLM_RESP["LLM Failure
-              · Retry with exponential backoff (3x)
-              · Fallback to alternative provider
-              · Degrade: serve cached content
-              · Return error to user with context"]
-    DB_RESP["Database Failure
-             · Read replica failover
-             · Connection pool recovery
-             · Circuit breaker (write path)
-             · Return 503 with retry-after"]
-    PLATFORM_RESP["Platform Failure
-                   · Queue for retry (max 3 attempts)
-                   · Exponential backoff (1min → 5min → 30min)
-                   · Notify user of pending post
-                   · Fallback to "copy to clipboard""]
-    WORKER_RESP["Worker Failure
-                 · Job re-queued with retry count
-                 · Dead letter queue after 3 failures
-                 · Alert on retry threshold
-                 · Isolate failing jobs"]
-  end
+### 13.2 Scale Costs (Phase 2, 5K users)
 
-  LLM_DOWN --> LLM_RESP
-  DB_DOWN --> DB_RESP
-  PLATFORM_DOWN --> PLATFORM_RESP
-  WORKER_DOWN --> WORKER_RESP
-```
-
-### 18.2 Graceful Degradation Matrix
-
-| Component | Healthy | Degraded (non-critical) | Degraded (critical) |
-|-----------|---------|------------------------|---------------------|
-| **LLM Provider** | Full generation | Show cached briefs, disable draft generation | Fallback to secondary provider |
-| **GitHub Integration** | Real-time activity | Show last cached activity (stale timestamp) | Disable GitHub-sourced ideas, use KB only |
-| **LinkedIn Publishing** | Direct publish | Queue posts, show "pending" status | Show "copy to clipboard" fallback |
-| **Trend Service** | Fresh trends | Use cached trends (stale timestamp) | Disable trend-based ideas |
-| **Knowledge Base Search** | Full search | Keyword-only (no vector search) | Show recent items only |
-| **Analytics** | Live metrics | Show cached metrics with "last updated" | Hide analytics section, show placeholder |
-
-### Decision: Fallback chains, not hard dependencies
-
-Every external dependency has a fallback chain:
-
-```
-LLM Call → Provider A → (timeout) → Provider B → (timeout) → Cache → (miss) → Error to user
-GitHub Sync → Cache → (miss) → Stale DB → (empty) → Skip GitHub signals
-LinkedIn Publish → API call → (fail) → Queue → (retry exhausted) → Notify user + copy fallback
-```
-
-This prevents any single provider outage from rendering the entire system unusable. The most critical path (draft generation) can fall back to a different LLM provider or serve pre-generated content from the cache.
+| Service | Cost |
+|---------|------|
+| Firebase (beyond free tier) | ~$25/mo |
+| Vercel Pro | $20/mo |
+| Groq paid tier (~5M tokens/mo) | ~$0.75-2.25/mo |
+| Supabase Pro | $25/mo |
+| **Total** | **~$75/mo** |
 
 ---
 
-## Appendix: Glossary
+## 14. Decision Log
 
-| Term | Definition |
-|------|------------|
-| **Content Engine** | The pipeline responsible for generating content ideas and drafts from user context |
-| **Style Profile** | Per-user representation of writing style, including vocabulary, sentence structure, tone, and technical depth |
-| **Voice Fingerprint** | The embedding vector representing a user's unique writing style |
-| **Platform Adapter** | A pluggable component that converts canonical BrandOS content into platform-specific formats |
-| **Content Brief** | A daily or weekly summary of suggested post topics generated from the user's GitHub activity, knowledge base, and trending topics |
-| **BFF** | Backend For Frontend — an API layer that serves frontend-specific data shapes |
-| **Arq** | An async Redis-backed job queue for Python, used for background content generation tasks |
-| **ChromaDB** | An open-source vector database for storing and searching embedding vectors, used as BrandOS's primary vector store |
-
----
-
-## Change History
-
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 0.1 | 2026-06-26 | Architecture Team | Initial draft |
+| # | Decision | Date | Rationale |
+|---|----------|------|-----------|
+| 1 | Firestore over PostgreSQL | 2026-07-14 | Serverless triggers, real-time via onSnapshot, security rules, zero-config. NoSQL document model fits user-centric data hierarchy. Cloud Functions fill the query gap for complex aggregations. |
+| 2 | Cloud Functions over FastAPI | 2026-07-14 | Eliminates server management. Scales to zero. Integrated with Firebase Auth + Firestore triggers. TypeScript enables shared types with frontend. Free tier covers MVP. |
+| 3 | Groq over Anthropic/OpenAI | 2026-07-14 | Open-source models only per requirement. Groq's LPU hardware provides faster inference than cloud GPUs. Free tier (14.4K RPD) covers MVP with no credit card required. |
+| 4 | Mistral over @xenova/transformers for embeddings | 2026-07-14 | 1B tokens/month free tier. No cold start impact (running ONNX in a Cloud Function adds ~2s cold start). Simpler code, no model bundling. |
+| 5 | Supabase pgvector over Cloudflare Vectorize | 2026-07-14 | Supabase client already installed in project. pgvector enables hybrid search (keyword + vector) in one database. 500MB free tier sufficient for MVP. |
+| 6 | Firestore triggers over message queue | 2026-07-14 | For MVP, Firestore document writes trigger embedding generation and other side effects. This eliminates a separate queue infrastructure. Cloud Tasks used only for scheduled posts and long-running content generation. |
+| 7 | No Redis/Separate cache layer | 2026-07-14 | Firestore's client SDK caching and server-side read-after-write consistency are sufficient for MVP. If brief retrieval latency exceeds 500ms, add a Cloud Storage cache document. |
+| 8 | Style learning is algorithmic, not LLM-driven | 2026-07-14 | Style profile is updated via exponential moving average of edit signals, ratings, and approvals. No LLM calls needed per update. This saves ~100K LLM calls/month at 500 users. |
+| 9 | Single Firebase project, not multiple | 2026-07-14 | One project for all Firebase services. Separate staging project for preview deploys. No multi-region or project-per-service complexity at MVP scale. |
+| 10 | Same-model pipeline (all Groq) instead of model-per-stage | 2026-07-14 | All pipeline stages use Groq (different models within Groq: Llama 3.3 70B for ideas, Qwen3 32B for drafts, Llama 4 Scout 17B for quality). Single API provider simplifies auth, error handling, and retry logic. |
 
 ---
 
-*This document captures the architectural decisions for BrandOS. Every decision includes the rationale and context to ensure future architects understand why the system is designed this way. All diagrams use Mermaid syntax and render in any Mermaid-compatible viewer.*
+*This document describes the target architecture. See 07_IMPLEMENTATION_PLAN.md for the phased migration from the current FastAPI/SQLite/ChromaDB stack to Firebase/Firestore/Groq.*

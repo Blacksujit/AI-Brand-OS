@@ -27,9 +27,9 @@ export function ProductPreview({ direction = "up" }: { direction?: Direction }) 
         <div className="bg-muted/20 border-b border-border/50 px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex gap-1.5">
-              <div className="size-3 rounded-full bg-zinc-700" />
-              <div className="size-3 rounded-full bg-zinc-700" />
-              <div className="size-3 rounded-full bg-zinc-700" />
+              <div className="size-3 rounded-full bg-muted/40" />
+              <div className="size-3 rounded-full bg-muted/40" />
+              <div className="size-3 rounded-full bg-muted/40" />
             </div>
             <div className="h-4 w-px bg-border/50 mx-2" />
             <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
@@ -68,7 +68,7 @@ export function ProductPreview({ direction = "up" }: { direction?: Direction }) 
                 {contentIdeas.map((idea) => (
                   <div key={idea.title} className="p-3 bg-background border border-border/50 rounded">
                     <p className="text-xs font-medium text-foreground mb-1">{idea.title}</p>
-                    <div className="h-1 w-full bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-1 w-full bg-muted/30 rounded-full overflow-hidden">
                       <div className="h-full bg-secondary" style={{ width: `${idea.progress}%` }} />
                     </div>
                   </div>
