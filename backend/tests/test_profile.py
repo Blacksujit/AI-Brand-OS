@@ -275,3 +275,9 @@ class TestOnboarding:
         data = response.json()
         assert data["display_name"] == "Re-onboarded"
         assert data["bio"] == "Updated during re-onboarding"
+
+
+
+
+
+
